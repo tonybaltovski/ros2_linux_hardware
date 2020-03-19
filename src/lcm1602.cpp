@@ -11,16 +11,16 @@ Lcm1602::Lcm1602(I2cInterface& i2c_interface, uint8_t device_id, uint8_t rows, u
   device_id_(device_id),
   rows_(rows),
   columns_(columns),
-  blacklight_(LCM1602_BACKLIGHT_OFF)
+  blacklight_(LCM1602_BACKLIGHT_OFF),
+  initialized_(false)
 {
   i2c_interface_.open_bus();
-  i2c_interface_.set_slave_addr(device_id_);
 }
 
 void Lcm1602::send(uint8_t value, uint32_t dely_us)
 {
   uint8_t buffer = value | blacklight_;
-  i2c_interface_.write_to_bus(buffer);
+  i2c_interface_.write_to_bus(device_id_, buffer);
   usleep(dely_us);
 }
 
@@ -48,26 +48,33 @@ void Lcm1602::command(uint8_t value, uint32_t dely_us)
   usleep(dely_us);
 }
 
-int Lcm1602::initialize()
+void Lcm1602::initialize()
 {
-  blacklight_ = LCM1602_BACKLIGHT_ON;
-  send(blacklight_, 2000);
+  if (!initialized_)
+  {
+    // Sleep to let the device initialize.
+    std::cout << __PRETTY_FUNCTION__ << ": Starting initialization" << std::endl;
+    usleep(400000);
+    blacklight_ = LCM1602_BACKLIGHT_ON;
+    send(blacklight_, 2000);
 
-  write_4bits(0x03 << 4);
-  usleep(LCM1602_DELAY_4000_US);
-  write_4bits(0x30);
-  usleep(LCM1602_DELAY_4000_US);
-  write_4bits(0x30);
-  usleep(LCM1602_DELAY_100_US);
-  write_4bits(0x20);
+    write_4bits(0x03 << 4);
+    usleep(LCM1602_DELAY_4000_US);
+    write_4bits(0x30);
+    usleep(LCM1602_DELAY_4000_US);
+    write_4bits(0x30);
+    usleep(LCM1602_DELAY_100_US);
+    write_4bits(0x20);
 
-  command(LCM1602_FUNCTIONSET    | LCM1602_2LINE);
-  command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON);
-  command(LCM1602_ENTRYMODESET   | LCM1602_ENTRYLEFT);
-  usleep(LCM1602_DELAY_40000_US);
-  clear();
-  home();
-  std::cout << __PRETTY_FUNCTION__ << ": Initialization done" << std::endl;
+    command(LCM1602_FUNCTIONSET    | LCM1602_2LINE);
+    command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON);
+    command(LCM1602_ENTRYMODESET   | LCM1602_ENTRYLEFT);
+    usleep(LCM1602_DELAY_40000_US);
+    clear();
+    home();
+    std::cout << __PRETTY_FUNCTION__ << ": Initialization done" << std::endl;
+    initialized_ = true;
+  }
 }
 
 void Lcm1602::stop()
@@ -90,7 +97,7 @@ void Lcm1602::home()
   usleep(LCM1602_DELAY_4000_US);
 }
 
-void Lcm1602::set_cursor(uint8_t row, uint8_t column)
+void Lcm1602::set_cursor(const uint8_t row, const uint8_t column)
 {
   uint8_t offset = 0;
   switch (row)
@@ -108,24 +115,16 @@ void Lcm1602::set_cursor(uint8_t row, uint8_t column)
       offset = 84;
       break;
   }
-  command(LCM1602_SETDDRAMADDR | (column % columns_) + offset);
+  command(LCM1602_SETDDRAMADDR | ((column % columns_) + offset));
 }
 
-void Lcm1602::print_char(uint8_t i)
+void Lcm1602::print_char(char i)
 {
   write(i, LCM1602_RS);
 }
 
 void Lcm1602::print_msg(const std::string& msg)
 {
-  clear();
-  home();
-  std::cout << __PRETTY_FUNCTION__ << ": printing msg:  " << msg << std::endl;
-  // for (auto it = msg.cbegin() ; it != msg.cend(); ++it)
-  // {
-  //   print_char(*it);
-  // }
-  set_cursor(0, 0);
   for (size_t i = 0; i < msg.length(); i++)
   {
     if (i >= (3 * columns_))
@@ -144,7 +143,6 @@ void Lcm1602::print_msg(const std::string& msg)
     {
       set_cursor(0, i);
     }
-
     print_char(msg[i]);
   }
 }

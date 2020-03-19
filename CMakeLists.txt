@@ -17,16 +17,17 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
 include_directories(include)
 
-add_executable(lcd_node src/lcd_node.cpp src/i2c_interface.cpp src/lcm1602.cpp)
-ament_target_dependencies(lcd_node rclcpp std_msgs)
+add_executable(lcd_logger src/lcd_logger.cpp src/i2c_interface.cpp src/lcm1602.cpp)
+ament_target_dependencies(lcd_logger rcl_interfaces rclcpp std_msgs)
 
 install(TARGETS
-    lcd_node
+    lcd_logger
     DESTINATION lib/${PROJECT_NAME}
 )
 

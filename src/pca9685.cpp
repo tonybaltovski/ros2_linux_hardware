@@ -11,7 +11,7 @@ Pca9685::Pca9685(I2cInterface& i2c_interface, uint8_t device_id) :
   device_id_(device_id)
 {
   i2c_interface_.open_bus();
-  i2c_interface_.set_slave_addr(device_id_);
+  i2c_interface_.set_device_id(device_id_);
 }
 
 

@@ -50,10 +50,12 @@ public:
           uint8_t rows, uint8_t columns);
   void clear();
   void home();
-  void set_cursor(uint8_t row, uint8_t column);
+  void set_cursor(const uint8_t row, const uint8_t column);
   void print_msg(const std::string& msg);
-  void print_char(uint8_t i);
-  int initialize();
+  void print_char(char i);
+  void initialize();
+  void turn_on();
+  void turn_off();
   void stop();
   void command(uint8_t value, uint32_t dely_us = 0);
   void write(uint8_t value, uint8_t mode);
@@ -66,6 +68,7 @@ private:
   uint8_t device_id_;
   uint8_t rows_, columns_;
   uint8_t blacklight_;
+  bool initialized_;
 };
 
 }  // namespace ros2_firmware
