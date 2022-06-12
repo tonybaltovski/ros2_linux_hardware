@@ -125,6 +125,7 @@ void Lcm1602::print_char(char i)
 
 void Lcm1602::print_msg(const std::string& msg)
 {
+
   for (size_t i = 0; i < msg.length(); i++)
   {
     if (i >= (3 * columns_))

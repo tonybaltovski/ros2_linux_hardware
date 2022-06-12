@@ -90,8 +90,12 @@ class Pca9685
 {
 public:
   Pca9685(I2cInterface& i2c_interface, uint8_t device_id);
-  int initialize();
+  void initialize();
+  void reset();
+  void sleep();
   void stop();
+  void write(const uint8_t pin, const uint16_t value);
+  void write_microseconds(const uint8_t pin, const uint32_t microseconds);
 
 private:
   I2cInterface i2c_interface_;

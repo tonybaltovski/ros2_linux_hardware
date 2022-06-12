@@ -8,7 +8,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/msg/log.hpp>
-#include <std_msgs/msg/string.hpp>
 
 using std::placeholders::_1;
 
@@ -22,7 +21,7 @@ public:
     lcd_(i2c_interface_, 0x27, 4, 20)
   {
     sub_log_ = this->create_subscription<rcl_interfaces::msg::Log>(
-      "/rosout", 100, std::bind(&LcdScreenLogger::logCallback, this, _1));
+      "/rosout", 100, std::bind(&LcdScreenLogger::log_callback, this, _1));
     lcd_.initialize();
     lcd_.clear();
   }
@@ -36,6 +35,9 @@ private:
   const std::string log_to_string(const rcl_interfaces::msg::Log::SharedPtr log_msg)
   {
     std::stringstream ss;
+    std::cout << __PRETTY_FUNCTION__ << ": log_msg->level: " << log_msg->level << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << ": log_msg->name: " << log_msg->name << std::endl;
+    std::cout << __PRETTY_FUNCTION__ << ": log_msg->msg: " << log_msg->msg << std::endl;
     switch (log_msg->level)
     {
       case rcl_interfaces::msg::Log::DEBUG:
@@ -62,14 +64,16 @@ private:
 
     return ss.str();
   }
-  void logCallback(const rcl_interfaces::msg::Log::SharedPtr log_msg)
+  void log_callback(const rcl_interfaces::msg::Log::SharedPtr log_msg)
   {
     lcd_.clear();
-    lcd_.set_cursor(0, 0);
-    if (log_msg->level >= min_logger_level_)
-    {
+    lcd_.set_cursor(0, 0);  // Home??
+    std::cout << __PRETTY_FUNCTION__ << ": min_logger_level_: " << min_logger_level_ << std::endl;
+    // if (log_msg->level >= min_logger_level_)
+    // {
+      std::cout << __PRETTY_FUNCTION__ << ": log_to_string(log_msg): " << log_to_string(log_msg) << std::endl;
       lcd_.print_msg(log_to_string(log_msg));
-    }
+    // }
   }
 
   rclcpp::Subscription<rcl_interfaces::msg::Log>::SharedPtr sub_log_;

@@ -24,7 +24,10 @@ find_package(std_msgs REQUIRED)
 include_directories(include)
 
 add_executable(lcd_logger src/lcd_logger.cpp src/i2c_interface.cpp src/lcm1602.cpp)
-ament_target_dependencies(lcd_logger rcl_interfaces rclcpp std_msgs)
+ament_target_dependencies(lcd_logger rcl_interfaces rclcpp)
+
+#add_executable(topic_to_pwm src/topic_to_pwm.cpp src/i2c_interface.cpp src/pca9685.cpp)
+#ament_target_dependencies(topic_to_pwm rclcpp std_msgs)
 
 install(TARGETS
     lcd_logger
