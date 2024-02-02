@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <unistd.h>
 
 #include "ros2_firmware/i2c_interface.hpp"
@@ -46,7 +47,7 @@ namespace ros2_firmware
 class Lcm1602
 {
 public:
-  Lcm1602(I2cInterface& i2c_interface, uint8_t device_id,
+  Lcm1602(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id,
           uint8_t rows, uint8_t columns);
   void clear();
   void home();
@@ -64,7 +65,7 @@ public:
   void pulse_enable(uint8_t value);
 
 private:
-  I2cInterface i2c_interface_;
+  std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface_;
   uint8_t device_id_;
   uint8_t rows_, columns_;
   uint8_t blacklight_;

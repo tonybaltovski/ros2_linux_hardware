@@ -6,7 +6,7 @@
 namespace ros2_firmware
 {
 
-Lcm1602::Lcm1602(I2cInterface& i2c_interface, uint8_t device_id, uint8_t rows, uint8_t columns) :
+Lcm1602::Lcm1602(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows, uint8_t columns) :
   i2c_interface_(i2c_interface),
   device_id_(device_id),
   rows_(rows),
@@ -14,13 +14,16 @@ Lcm1602::Lcm1602(I2cInterface& i2c_interface, uint8_t device_id, uint8_t rows, u
   blacklight_(LCM1602_BACKLIGHT_OFF),
   initialized_(false)
 {
-  i2c_interface_.open_bus();
+  i2c_interface_->open_bus();
 }
 
 void Lcm1602::send(uint8_t value, uint32_t dely_us)
 {
   uint8_t buffer = value | blacklight_;
-  i2c_interface_.write_to_bus(device_id_, buffer);
+  if (i2c_interface_->is_connected())
+    i2c_interface_->write_to_bus(device_id_, buffer);
+  else
+    std::cerr << __PRETTY_FUNCTION__ << ": i2c interface not connected." << std::endl;
   usleep(dely_us);
 }
 
@@ -82,7 +85,8 @@ void Lcm1602::stop()
   clear();
   blacklight_ = LCM1602_BACKLIGHT_OFF;
   send(blacklight_, LCM1602_DELAY_100_US);
-  i2c_interface_.close_bus();
+  if (i2c_interface_->is_connected())
+    i2c_interface_->close_bus();
 }
 
 void Lcm1602::clear()

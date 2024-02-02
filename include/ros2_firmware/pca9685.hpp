@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <unistd.h>
 
 #include "ros2_firmware/i2c_interface.hpp"
@@ -89,12 +90,12 @@ namespace ros2_firmware
 class Pca9685
 {
 public:
-  Pca9685(I2cInterface& i2c_interface, uint8_t device_id);
+  Pca9685(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id);
   int initialize();
   void stop();
 
 private:
-  I2cInterface i2c_interface_;
+  std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface_;
   uint8_t device_id_;
 };
 

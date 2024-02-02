@@ -18,8 +18,7 @@ public:
   LcdScreenLogger(uint8_t min_logger_level)
   : Node("lcd_loger"),
     min_logger_level_(min_logger_level),
-    i2c_interface_(1),
-    lcd_(i2c_interface_, 0x27, 4, 20)
+    lcd_(std::make_shared<ros2_firmware::I2cInterface>(1), 0x27, 4, 20)
   {
     sub_log_ = this->create_subscription<rcl_interfaces::msg::Log>(
       "/rosout", 100, std::bind(&LcdScreenLogger::logCallback, this, _1));
@@ -73,7 +72,6 @@ private:
   }
 
   rclcpp::Subscription<rcl_interfaces::msg::Log>::SharedPtr sub_log_;
-  ros2_firmware::I2cInterface i2c_interface_;
   ros2_firmware::Lcm1602 lcd_;
   uint8_t min_logger_level_;
 };
