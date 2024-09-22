@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ros2_firmware)
+project(linux_i2c_demos)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -20,15 +20,24 @@ find_package(ament_cmake REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(linux_i2c_devices REQUIRED)
+find_package(linux_i2c_interface REQUIRED)
+
 
 include_directories(include)
 
-add_executable(lcd_logger src/lcd_logger.cpp src/i2c_interface.cpp src/lcm1602.cpp)
-ament_target_dependencies(lcd_logger rcl_interfaces rclcpp std_msgs)
+include_directories(${linux_i2c_devices_INCLUDE_DIRS})
+include_directories(${linux_i2c_interface_INCLUDE_DIRS})
+
+
+add_executable(lcd_logger src/lcd_logger.cpp) 
+ament_target_dependencies(lcd_logger linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
+target_link_libraries(lcd_logger linux_i2c_devices linux_i2c_interface)
+
 
 install(TARGETS
-    lcd_logger
-    DESTINATION lib/${PROJECT_NAME}
+  lcd_logger
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

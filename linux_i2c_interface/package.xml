@@ -1,19 +1,18 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>ros2_firmware</name>
+  <name>linux_i2c_interface</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="ubuntu@todo.todo">ubuntu</maintainer>
-  <license>TODO: License declaration</license>
+  <description>I2C Linux interface for ROS 2</description>
+  <maintainer email="tony@baltovski.ca">Tony Baltovski</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <build_depend>libi2c-dev</build_depend>
 
-  <depend>rcl_interfaces</depend>
-  <depend>rclcpp</depend>
-  <depend>std_msgs</depend>
+  <!-- <depend>rcl_interfaces</depend>
+  <depend>rclcpp</depend> -->
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

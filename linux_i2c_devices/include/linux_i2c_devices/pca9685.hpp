@@ -3,7 +3,7 @@
 #include <memory>
 #include <unistd.h>
 
-#include "ros2_firmware/i2c_interface.hpp"
+#include "linux_i2c_interface/i2c_interface.hpp"
 
 #define PCA9685_DEFAULT_ADDRESS 0x40
 
@@ -84,19 +84,19 @@
 #define PCA9685_PRE_SCALE     0xFE
 #define PCA9685_TEST_MODE     0xFF
 
-namespace ros2_firmware
+namespace linux_i2c_devices
 {
 
 class Pca9685
 {
 public:
-  Pca9685(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id);
+  Pca9685(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
   int initialize();
   void stop();
 
 private:
-  std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface_;
+  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
   uint8_t device_id_;
 };
 
-}  // namespace ros2_firmware
+}  // namespace linux_i2c_devices

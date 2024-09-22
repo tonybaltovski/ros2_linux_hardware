@@ -3,7 +3,7 @@
 #include <memory>
 #include <unistd.h>
 
-#include "ros2_firmware/i2c_interface.hpp"
+#include "linux_i2c_interface/i2c_interface.hpp"
 
 #define LCM1602_CLEARDISPLAY   0x01
 #define LCM1602_RETURNHOME     0x02
@@ -41,13 +41,13 @@
 #define LCM1602_DELAY_4000_US  4000
 #define LCM1602_DELAY_40000_US 40000
 
-namespace ros2_firmware
+namespace linux_i2c_devices
 {
 
 class Lcm1602
 {
 public:
-  Lcm1602(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id,
+  Lcm1602(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id,
           uint8_t rows, uint8_t columns);
   void clear();
   void home();
@@ -58,18 +58,18 @@ public:
   void turn_on();
   void turn_off();
   void stop();
-  void command(uint8_t value, uint32_t dely_us = 0);
+  void command(uint8_t value, uint32_t delay_us = 0);
   void write(uint8_t value, uint8_t mode);
   void write_4bits(uint8_t value);
-  void send(uint8_t value, uint32_t dely_us = 0);
+  void send(uint8_t value, uint32_t delay_us = 0);
   void pulse_enable(uint8_t value);
 
 private:
-  std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface_;
+  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
   uint8_t device_id_;
   uint8_t rows_, columns_;
   uint8_t blacklight_;
   bool initialized_;
 };
 
-}  // namespace ros2_firmware
+}  // namespace linux_i2c_devices

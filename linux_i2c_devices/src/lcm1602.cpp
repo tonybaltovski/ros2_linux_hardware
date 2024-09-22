@@ -1,12 +1,12 @@
 #include <cstring>
 #include <iostream>
 
-#include "ros2_firmware/lcm1602.hpp"
+#include "linux_i2c_devices/lcm1602.hpp"
 
-namespace ros2_firmware
+namespace linux_i2c_devices
 {
 
-Lcm1602::Lcm1602(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows, uint8_t columns) :
+Lcm1602::Lcm1602(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows, uint8_t columns) :
   i2c_interface_(i2c_interface),
   device_id_(device_id),
   rows_(rows),
@@ -17,14 +17,14 @@ Lcm1602::Lcm1602(std::shared_ptr<ros2_firmware::I2cInterface> i2c_interface, uin
   i2c_interface_->open_bus();
 }
 
-void Lcm1602::send(uint8_t value, uint32_t dely_us)
+void Lcm1602::send(uint8_t value, uint32_t delay_us)
 {
   uint8_t buffer = value | blacklight_;
   if (i2c_interface_->is_connected())
     i2c_interface_->write_to_bus(device_id_, buffer);
   else
     std::cerr << __PRETTY_FUNCTION__ << ": i2c interface not connected." << std::endl;
-  usleep(dely_us);
+  usleep(delay_us);
 }
 
 void Lcm1602::pulse_enable(uint8_t value)
@@ -45,10 +45,10 @@ void Lcm1602::write(uint8_t value, uint8_t mode)
   write_4bits(((value << 4) & 0xF0) | mode);
 }
 
-void Lcm1602::command(uint8_t value, uint32_t dely_us)
+void Lcm1602::command(uint8_t value, uint32_t delay_us)
 {
   write(value, LCM1602_CMD);
-  usleep(dely_us);
+  usleep(delay_us);
 }
 
 void Lcm1602::initialize()
@@ -151,4 +151,4 @@ void Lcm1602::print_msg(const std::string& msg)
   }
 }
 
-}  // namespace ros2_firmware
+}  // namespace linux_i2c_devices

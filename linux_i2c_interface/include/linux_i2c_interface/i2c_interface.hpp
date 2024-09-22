@@ -4,7 +4,7 @@
 #include <memory>
 #include <mutex>
 
-namespace ros2_firmware
+namespace linux_i2c_interface
 {
 
 class I2cInterface
@@ -34,4 +34,4 @@ private:
   bool is_connected_;
 };
 
-}  // namespace ros2_firmware
+}  // namespace linux_i2c_interface

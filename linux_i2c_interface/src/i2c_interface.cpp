@@ -5,15 +5,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
-#include <i2c/smbus.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "ros2_firmware/i2c_interface.hpp"
+#include "linux_i2c_interface/i2c_interface.hpp"
 
-namespace ros2_firmware
+namespace linux_i2c_interface
 {
 
 I2cInterface::I2cInterface(const std::string& i2c_bus) :
@@ -168,4 +167,4 @@ int8_t I2cInterface::write_to_bus(const uint8_t address, void* data, uint32_t co
 //
 // }
 
-}  // namespace ros2_firmware
+}  // namespace linux_i2c_interface
