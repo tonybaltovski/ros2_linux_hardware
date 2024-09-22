@@ -1,13 +1,27 @@
-#include <memory>
-#include <string>
+// Copyright 2020 Tony Baltovski
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <unistd.h>
 
-#include "linux_i2c_interface/i2c_interface.hpp"
-#include "linux_i2c_devices/lcm1602.hpp"
+#include <memory>
+#include <string>
 
-#include <rclcpp/rclcpp.hpp>
+#include "linux_i2c_devices/lcm1602.hpp"
+#include "linux_i2c_interface/i2c_interface.hpp"
+
 #include <rcl_interfaces/msg/log.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
 using std::placeholders::_1;
@@ -15,7 +29,7 @@ using std::placeholders::_1;
 class LcdScreenLogger : public rclcpp::Node
 {
 public:
-  LcdScreenLogger(uint8_t min_logger_level)
+  explicit LcdScreenLogger(uint8_t min_logger_level)
   : Node("lcd_loger"),
     min_logger_level_(min_logger_level),
     lcd_(std::make_shared<linux_i2c_interface::I2cInterface>(1), 0x27, 4, 20)
@@ -26,10 +40,7 @@ public:
     lcd_.clear();
   }
 
-  ~LcdScreenLogger()
-  {
-    lcd_.stop();
-  }
+  ~LcdScreenLogger() { lcd_.stop(); }
 
 private:
   const std::string log_to_string(const rcl_interfaces::msg::Log::SharedPtr log_msg)
@@ -76,7 +87,7 @@ private:
   uint8_t min_logger_level_;
 };
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<LcdScreenLogger>(rcl_interfaces::msg::Log::INFO));

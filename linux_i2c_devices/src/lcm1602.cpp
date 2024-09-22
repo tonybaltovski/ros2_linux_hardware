@@ -1,3 +1,17 @@
+// Copyright 2020 Tony Baltovski
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <cstring>
 #include <iostream>
 
@@ -6,8 +20,10 @@
 namespace linux_i2c_devices
 {
 
-Lcm1602::Lcm1602(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows, uint8_t columns) :
-  i2c_interface_(i2c_interface),
+Lcm1602::Lcm1602(
+  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows,
+  uint8_t columns)
+: i2c_interface_(i2c_interface),
   device_id_(device_id),
   rows_(rows),
   columns_(columns),
@@ -69,9 +85,9 @@ void Lcm1602::initialize()
     usleep(LCM1602_DELAY_100_US);
     write_4bits(0x20);
 
-    command(LCM1602_FUNCTIONSET    | LCM1602_2LINE);
+    command(LCM1602_FUNCTIONSET | LCM1602_2LINE);
     command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON);
-    command(LCM1602_ENTRYMODESET   | LCM1602_ENTRYLEFT);
+    command(LCM1602_ENTRYMODESET | LCM1602_ENTRYLEFT);
     usleep(LCM1602_DELAY_40000_US);
     clear();
     home();
@@ -85,8 +101,7 @@ void Lcm1602::stop()
   clear();
   blacklight_ = LCM1602_BACKLIGHT_OFF;
   send(blacklight_, LCM1602_DELAY_100_US);
-  if (i2c_interface_->is_connected())
-    i2c_interface_->close_bus();
+  if (i2c_interface_->is_connected()) i2c_interface_->close_bus();
 }
 
 void Lcm1602::clear()
@@ -122,12 +137,9 @@ void Lcm1602::set_cursor(const uint8_t row, const uint8_t column)
   command(LCM1602_SETDDRAMADDR | ((column % columns_) + offset));
 }
 
-void Lcm1602::print_char(char i)
-{
-  write(i, LCM1602_RS);
-}
+void Lcm1602::print_char(char i) { write(i, LCM1602_RS); }
 
-void Lcm1602::print_msg(const std::string& msg)
+void Lcm1602::print_msg(const std::string & msg)
 {
   for (size_t i = 0; i < msg.length(); i++)
   {
