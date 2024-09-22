@@ -32,8 +32,6 @@ include_directories(${linux_i2c_interface_INCLUDE_DIRS})
 
 add_executable(lcd_logger src/lcd_logger.cpp) 
 ament_target_dependencies(lcd_logger linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
-target_link_libraries(lcd_logger linux_i2c_devices linux_i2c_interface)
-
 
 install(TARGETS
   lcd_logger
