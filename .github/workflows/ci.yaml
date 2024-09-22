@@ -3,18 +3,23 @@ name: ci
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "0 0 * * *" # every day at midnight
 
 jobs:
-  build_and_test:
-    name: humble
-    strategy:
-      matrix:
-        env:
-          - {ROS_DISTRO: humble, ROS_REPO: testing}
-          - {ROS_DISTRO: humble, ROS_REPO: main}
-      fail-fast: false
-    runs-on: ubuntu-22.04
+  jazzy_ci:
+    name: Jazzy CI
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
-      - uses: 'ros-industrial/industrial_ci@master'
-        env: ${{matrix.env}}
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - uses: ros-tooling/action-ros-ci@v0.3
+        id: action_ros_ci_step
+        with:
+          target-ros2-distro: jazzy
+          package-name: |
+            linux_i2c_demos
+            linux_i2c_devices
+            linux_i2c_interface
