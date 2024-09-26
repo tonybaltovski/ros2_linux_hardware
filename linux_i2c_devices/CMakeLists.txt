@@ -17,15 +17,11 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-#find_package(rcl_interfaces REQUIRED)
-#find_package(rclcpp REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
-
 
 include_directories(include)
 
 include_directories(${linux_i2c_interface_INCLUDE_DIRS})
-
 
 add_library(${PROJECT_NAME} SHARED
   src/lcm1602.cpp
@@ -35,11 +31,7 @@ set(DEPENDENCIES
   linux_i2c_interface
 )
 
-
-
-#ament_target_dependencies(${PROJECT_NAME} ${DEPENDENCIES})
 ament_target_dependencies(${PROJECT_NAME} ${DEPENDENCIES})
-
 
 install(TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}
@@ -55,7 +47,10 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   list(APPEND AMENT_LINT_AUTO_EXCLUDE
     ament_cmake_copyright
+    ament_cmake_cpplint
+    ament_cmake_uncrustify
   )
+  set(ament_cmake_clang_format_CONFIG_FILE .clang-format)
   ament_lint_auto_find_test_dependencies()
 endif()
 

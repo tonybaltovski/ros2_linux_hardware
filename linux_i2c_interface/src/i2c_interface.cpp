@@ -69,7 +69,10 @@ int8_t I2cInterface::close_bus()
     std::cerr << __PRETTY_FUNCTION__ << ": Failed to close : " << strerror(errno) << std::endl;
   }
   else
+  {
     this->is_connected_ = false;
+  }
+
   return ret;
 }
 

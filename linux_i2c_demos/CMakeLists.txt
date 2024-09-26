@@ -23,29 +23,30 @@ find_package(std_msgs REQUIRED)
 find_package(linux_i2c_devices REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
 
-
 include_directories(include)
 
 include_directories(${linux_i2c_devices_INCLUDE_DIRS})
 include_directories(${linux_i2c_interface_INCLUDE_DIRS})
 
+add_executable(lcd_rosout_logger src/lcd_rosout_logger.cpp)
+ament_target_dependencies(lcd_rosout_logger linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
 
-add_executable(lcd_logger src/lcd_logger.cpp)
-ament_target_dependencies(lcd_logger linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
+add_executable(lcd_from_str_topic src/lcd_from_str_topic.cpp)
+ament_target_dependencies(lcd_from_str_topic linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
 
 install(TARGETS
-  lcd_logger
+  lcd_from_str_topic lcd_rosout_logger
   DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE
+    ament_cmake_copyright
+    ament_cmake_cpplint
+    ament_cmake_uncrustify
+  )
+  set(ament_cmake_clang_format_CONFIG_FILE .clang-format)
   ament_lint_auto_find_test_dependencies()
 endif()
 

@@ -24,23 +24,21 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
-using std::placeholders::_1;
-
-class LcdScreenLogger : public rclcpp::Node
+class LcdRosoutLogger : public rclcpp::Node
 {
 public:
-  explicit LcdScreenLogger(uint8_t min_logger_level)
-  : Node("lcd_logger"),
-    min_logger_level_(min_logger_level),
-    lcd_(std::make_shared<linux_i2c_interface::I2cInterface>(1), 0x27, 4, 20)
+  explicit LcdRosoutLogger(uint8_t min_logger_level)
+  : Node("lcd_rosout_logger"),
+    lcd_(std::make_shared<linux_i2c_interface::I2cInterface>(1), 0x27, 4, 20),
+    min_logger_level_(min_logger_level)
   {
     sub_log_ = this->create_subscription<rcl_interfaces::msg::Log>(
-      "/rosout", 100, std::bind(&LcdScreenLogger::logCallback, this, _1));
+      "/rosout", 100, std::bind(&LcdRosoutLogger::log_callback, this, std::placeholders::_1));
     lcd_.initialize();
     lcd_.clear();
   }
 
-  ~LcdScreenLogger() { lcd_.stop(); }
+  ~LcdRosoutLogger() { lcd_.stop(); }
 
 private:
   const std::string log_to_string(const rcl_interfaces::msg::Log::SharedPtr log_msg)
@@ -72,7 +70,7 @@ private:
 
     return ss.str();
   }
-  void logCallback(const rcl_interfaces::msg::Log::SharedPtr log_msg)
+  void log_callback(const rcl_interfaces::msg::Log::SharedPtr log_msg)
   {
     lcd_.clear();
     lcd_.set_cursor(0, 0);
@@ -90,7 +88,7 @@ private:
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<LcdScreenLogger>(rcl_interfaces::msg::Log::INFO));
+  rclcpp::spin(std::make_shared<LcdRosoutLogger>(rcl_interfaces::msg::Log::INFO));
   rclcpp::shutdown();
   return 0;
 }
