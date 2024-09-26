@@ -30,7 +30,7 @@ class LcdScreenLogger : public rclcpp::Node
 {
 public:
   explicit LcdScreenLogger(uint8_t min_logger_level)
-  : Node("lcd_loger"),
+  : Node("lcd_logger"),
     min_logger_level_(min_logger_level),
     lcd_(std::make_shared<linux_i2c_interface::I2cInterface>(1), 0x27, 4, 20)
   {
