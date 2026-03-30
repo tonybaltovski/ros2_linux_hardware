@@ -12,105 +12,194 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * @file pca9685.hpp
+ * @brief Driver for the PCA9685 16-channel, 12-bit PWM/LED controller over I2C.
+ */
+
 #pragma once
 
 #include <unistd.h>
+
+#include <cstdint>
 #include <memory>
 
 #include "linux_i2c_interface/i2c_interface.hpp"
 
-#define PCA9685_DEFAULT_ADDRESS 0x40
-
-#define PCA9685_MODE1 0x00
-#define PCA9685_MODE2 0x01
-#define PCA9685_SUBADR1 0x02
-#define PCA9685_SUBADR2 0x03
-#define PCA9685_SUBADR3 0x04
-#define PCA9685_ALLCALLADR 0X05
-#define PCA9685_LED00_ON_L 0x06
-#define PCA9685_LED00_ON_H 0x07
-#define PCA9685_LED00_OFF_L 0x08
-#define PCA9685_LED00_OFF_H 0x09
-#define PCA9685_LED01_ON_L 0x0A
-#define PCA9685_LED01_ON_H 0x0B
-#define PCA9685_LED01_OFF_L 0x0C
-#define PCA9685_LED01_OFF_H 0x0D
-#define PCA9685_LED02_ON_L 0x0E
-#define PCA9685_LED02_ON_H 0x0F
-#define PCA9685_LED02_OFF_L 0x10
-#define PCA9685_LED02_OFF_H 0x11
-#define PCA9685_LED03_ON_L 0x12
-#define PCA9685_LED03_ON_H 0x13
-#define PCA9685_LED03_OFF_L 0x14
-#define PCA9685_LED03_OFF_H 0x15
-#define PCA9685_LED04_ON_L 0x16
-#define PCA9685_LED04_ON_H 0x17
-#define PCA9685_LED04_OFF_L 0x18
-#define PCA9685_LED04_OFF_H 0x19
-#define PCA9685_LED05_ON_L 0x1A
-#define PCA9685_LED05_ON_H 0x1B
-#define PCA9685_LED05_OFF_L 0x1C
-#define PCA9685_LED05_OFF_H 0x1D
-#define PCA9685_LED06_ON_L 0x1E
-#define PCA9685_LED06_ON_H 0x1F
-#define PCA9685_LED06_OFF_L 0x20
-#define PCA9685_LED06_OFF_H 0x21
-#define PCA9685_LED07_ON_L 0x22
-#define PCA9685_LED07_ON_H 0x23
-#define PCA9685_LED07_OFF_L 0x24
-#define PCA9685_LED07_OFF_H 0x25
-#define PCA9685_LED08_ON_L 0x26
-#define PCA9685_LED08_ON_H 0x27
-#define PCA9685_LED08_OFF_L 0x28
-#define PCA9685_LED08_OFF_H 0x29
-#define PCA9685_LED09_ON_L 0x2A
-#define PCA9685_LED09_ON_H 0x2B
-#define PCA9685_LED09_OFF_L 0x2C
-#define PCA9685_LED09_OFF_H 0x2D
-#define PCA9685_LED10_ON_L 0x2E
-#define PCA9685_LED10_ON_H 0x2F
-#define PCA9685_LED10_OFF_L 0x30
-#define PCA9685_LED10_OFF_H 0x31
-#define PCA9685_LED11_ON_L 0x32
-#define PCA9685_LED11_ON_H 0x33
-#define PCA9685_LED11_OFF_L 0x34
-#define PCA9685_LED11_OFF_H 0x35
-#define PCA9685_LED12_ON_L 0x36
-#define PCA9685_LED12_ON_H 0x37
-#define PCA9685_LED12_OFF_L 0x38
-#define PCA9685_LED12_OFF_H 0x39
-#define PCA9685_LED13_ON_L 0x3A
-#define PCA9685_LED13_ON_H 0x3B
-#define PCA9685_LED13_OFF_L 0x3C
-#define PCA9685_LED13_OFF_H 0x3D
-#define PCA9685_LED14_ON_L 0x3E
-#define PCA9685_LED14_ON_H 0x3F
-#define PCA9685_LED14_OFF_L 0x40
-#define PCA9685_LED14_OFF_H 0x41
-#define PCA9685_LED15_ON_L 0x42
-#define PCA9685_LED15_ON_H 0x43
-#define PCA9685_LED15_OFF_L 0x44
-#define PCA9685_LED15_OFF_H 0x45
-#define PCA9685_ALL_LED_ON_L 0xFA
-#define PCA9685_ALL_LED_ON_H 0xFB
-#define PCA9685_ALL_LED_OFF_L 0xFC
-#define PCA9685_ALL_LED_OFF_H 0xFD
-#define PCA9685_PRE_SCALE 0xFE
-#define PCA9685_TEST_MODE 0xFF
-
 namespace linux_i2c_devices
 {
 
+/** @name PCA9685 register addresses */
+///@{
+constexpr uint8_t PCA9685_DEFAULT_ADDRESS = 0x40;
+
+constexpr uint8_t PCA9685_MODE1 = 0x00;
+constexpr uint8_t PCA9685_MODE2 = 0x01;
+constexpr uint8_t PCA9685_SUBADR1 = 0x02;
+constexpr uint8_t PCA9685_SUBADR2 = 0x03;
+constexpr uint8_t PCA9685_SUBADR3 = 0x04;
+constexpr uint8_t PCA9685_ALLCALLADR = 0x05;
+///@}
+
+/** @name MODE1 register bits */
+///@{
+constexpr uint8_t PCA9685_MODE1_ALLCALL = 0x01;  ///< Respond to LED all-call address.
+constexpr uint8_t PCA9685_MODE1_SUB3 = 0x02;     ///< Respond to sub-address 3.
+constexpr uint8_t PCA9685_MODE1_SUB2 = 0x04;     ///< Respond to sub-address 2.
+constexpr uint8_t PCA9685_MODE1_SUB1 = 0x08;     ///< Respond to sub-address 1.
+constexpr uint8_t PCA9685_MODE1_SLEEP = 0x10;    ///< Low-power / oscillator off.
+constexpr uint8_t PCA9685_MODE1_AI = 0x20;       ///< Auto-increment register pointer.
+constexpr uint8_t PCA9685_MODE1_EXTCLK = 0x40;   ///< Use external clock.
+constexpr uint8_t PCA9685_MODE1_RESTART = 0x80;  ///< Restart enabled PWM channels.
+///@}
+
+/** @name MODE2 register bits */
+///@{
+constexpr uint8_t PCA9685_MODE2_OUTNE_MASK = 0x03;  ///< Output-not-enabled control.
+constexpr uint8_t PCA9685_MODE2_OUTDRV = 0x04;      ///< Totem-pole (1) vs open-drain (0).
+constexpr uint8_t PCA9685_MODE2_OCH = 0x08;         ///< Outputs change on ACK (1) vs STOP (0).
+constexpr uint8_t PCA9685_MODE2_INVRT = 0x10;       ///< Invert output logic.
+///@}
+
+/**
+ * @brief Compute the register address for a per-channel LED register.
+ *
+ * Each of the 16 channels (0-15) occupies four consecutive bytes starting
+ * at 0x06: ON_L, ON_H, OFF_L, OFF_H.
+ *
+ * @param channel LED channel number (0-15).
+ * @param offset  Register offset within the channel group (0 = ON_L, 1 = ON_H,
+ *                2 = OFF_L, 3 = OFF_H).
+ * @return Register address.
+ */
+constexpr uint8_t pca9685_led_reg(uint8_t channel, uint8_t offset)
+{
+  return static_cast<uint8_t>(0x06 + channel * 4 + offset);
+}
+
+/** @name "All LED" broadcast registers */
+///@{
+constexpr uint8_t PCA9685_ALL_LED_ON_L = 0xFA;
+constexpr uint8_t PCA9685_ALL_LED_ON_H = 0xFB;
+constexpr uint8_t PCA9685_ALL_LED_OFF_L = 0xFC;
+constexpr uint8_t PCA9685_ALL_LED_OFF_H = 0xFD;
+///@}
+
+/** @name Miscellaneous registers */
+///@{
+constexpr uint8_t PCA9685_PRE_SCALE = 0xFE;
+constexpr uint8_t PCA9685_TEST_MODE = 0xFF;
+///@}
+
+/** @name Driver constants */
+///@{
+constexpr uint16_t PCA9685_MAX_COUNT = 4096;         ///< 12-bit counter range.
+constexpr double PCA9685_INTERNAL_CLK = 25000000.0;  ///< 25 MHz internal oscillator.
+constexpr double PCA9685_DEFAULT_FREQ = 50.0;        ///< Default PWM frequency (Hz).
+constexpr uint8_t PCA9685_NUM_CHANNELS = 16;         ///< Number of PWM channels.
+///@}
+
+/**
+ * @class Pca9685
+ * @brief Driver for the PCA9685 16-channel, 12-bit PWM controller.
+ *
+ * Typical usage:
+ * @code
+ * auto i2c = std::make_shared<linux_i2c_interface::I2cInterface>(1);
+ * linux_i2c_devices::Pca9685 pwm(i2c, 0x40);
+ * pwm.initialize();
+ * pwm.set_pwm_frequency(50.0);   // 50 Hz for servos
+ * pwm.set_duty_cycle(0, 0.075);  // ~1.5 ms pulse → servo centre
+ * @endcode
+ */
 class Pca9685
 {
 public:
+  /**
+   * @brief Construct a Pca9685 driver.
+   * @param i2c_interface Shared I2C bus interface.
+   * @param device_id 7-bit I2C address (default 0x40).
+   */
   Pca9685(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
+
+  /**
+   * @brief Initialise the PCA9685.
+   *
+   * Resets the device, enables auto-increment, sets totem-pole output,
+   * configures the default PWM frequency, and wakes the oscillator.
+   *
+   * @return 0 on success, -1 on failure.
+   */
   int initialize();
+
+  /**
+   * @brief Set the PWM frequency for all channels.
+   * @param freq_hz Desired frequency in Hz (24-1526 Hz range).
+   * @return 0 on success, -1 on failure.
+   */
+  int set_pwm_frequency(double freq_hz);
+
+  /**
+   * @brief Set raw ON/OFF tick counts for a single channel.
+   * @param channel Channel number (0-15).
+   * @param on  12-bit tick count at which the output turns ON.
+   * @param off 12-bit tick count at which the output turns OFF.
+   * @return 0 on success, -1 on failure.
+   */
+  int set_pwm(uint8_t channel, uint16_t on, uint16_t off);
+
+  /**
+   * @brief Set the duty cycle for a single channel.
+   * @param channel    Channel number (0-15).
+   * @param duty_cycle Duty cycle in the range [0.0, 1.0].
+   * @return 0 on success, -1 on failure.
+   */
+  int set_duty_cycle(uint8_t channel, double duty_cycle);
+
+  /**
+   * @brief Set raw ON/OFF tick counts for all 16 channels simultaneously.
+   * @param on  12-bit ON tick count.
+   * @param off 12-bit OFF tick count.
+   * @return 0 on success, -1 on failure.
+   */
+  int set_all_pwm(uint16_t on, uint16_t off);
+
+  /**
+   * @brief Put the device into sleep mode (oscillator off).
+   * @return 0 on success, -1 on failure.
+   */
+  int sleep();
+
+  /**
+   * @brief Wake the device from sleep mode.
+   * @return 0 on success, -1 on failure.
+   */
+  int wake_up();
+
+  /** @brief Turn off all channels and close the I2C bus connection. */
   void stop();
 
 private:
+  /**
+   * @brief Write a single byte to a register.
+   * @param reg  Register address.
+   * @param value Byte to write.
+   * @return 0 on success, -1 on failure.
+   */
+  int write_register(uint8_t reg, uint8_t value);
+
+  /**
+   * @brief Read a single byte from a register.
+   * @param reg Register address.
+   * @param[out] value Byte read.
+   * @return 0 on success, -1 on failure.
+   */
+  int read_register(uint8_t reg, uint8_t & value);
+
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
   uint8_t device_id_;
+  double pwm_frequency_{PCA9685_DEFAULT_FREQ};  ///< Current PWM frequency (Hz).
+  bool initialized_{false};
 };
 
 }  // namespace linux_i2c_devices

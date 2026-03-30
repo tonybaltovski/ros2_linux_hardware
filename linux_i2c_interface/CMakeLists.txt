@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.14)
 project(linux_i2c_interface)
 
 # Default to C99
@@ -6,9 +6,9 @@ if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -29,13 +29,13 @@ ament_target_dependencies(${PROJECT_NAME})
 install(TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}
   LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include
 )
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   list(APPEND AMENT_LINT_AUTO_EXCLUDE

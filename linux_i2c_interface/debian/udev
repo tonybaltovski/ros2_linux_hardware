@@ -1,0 +1,2 @@
+# Allow members of the "i2c" group read/write access to I2C bus devices on the Raspberry Pi.
+KERNEL=="i2c-[0-9]*", GROUP="i2c", MODE="0660"
