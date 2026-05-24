@@ -13,28 +13,48 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
-#include <iostream>
+#include <cstdio>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <utility>
 
 #include "linux_i2c_devices/pca9685.hpp"
+#include "rclcpp/logging.hpp"
 
 namespace linux_i2c_devices
 {
+namespace
+{
+std::shared_ptr<linux_i2c_interface::I2cInterface> require_iface(
+  std::shared_ptr<linux_i2c_interface::I2cInterface> iface)
+{
+  if (!iface)
+  {
+    throw std::invalid_argument("Pca9685: i2c_interface must not be null");
+  }
+  return iface;
+}
+
+std::string make_log_name(const std::string & bus, uint8_t addr)
+{
+  const auto slash = bus.find_last_of('/');
+  const std::string base = slash == std::string::npos ? bus : bus.substr(slash + 1);
+  char buf[8];
+  std::snprintf(buf, sizeof(buf), "0x%02x", static_cast<int>(addr));
+  return "pca9685." + base + "." + buf;
+}
+rclcpp::Logger logger(const std::string & name) { return rclcpp::get_logger(name); }
+}  // namespace
 
 Pca9685::Pca9685(
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id)
-: i2c_interface_(i2c_interface), device_id_(device_id)
+: i2c_interface_(require_iface(std::move(i2c_interface))),
+  device_id_(device_id),
+  log_name_(make_log_name(i2c_interface_->bus_name(), device_id))
 {
-}
-
-int Pca9685::write_register(uint8_t reg, uint8_t value)
-{
-  return i2c_interface_->write_to_bus(reg, &value, 1);
-}
-
-int Pca9685::read_register(uint8_t reg, uint8_t & value)
-{
-  return i2c_interface_->read_from_bus(reg, &value, 1);
 }
 
 int Pca9685::initialize()
@@ -44,60 +64,68 @@ int Pca9685::initialize()
     return 0;
   }
 
-  std::cout << __PRETTY_FUNCTION__ << ": Starting initialization" << std::endl;
+  RCLCPP_INFO(logger(log_name_), "%s: Starting initialization", __func__);
 
-  // Open bus and select device.
-  if (i2c_interface_->open_bus() < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to open I2C bus" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to start transaction", __func__);
     return -1;
   }
-  if (i2c_interface_->set_device_id(device_id_) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set device ID" << std::endl;
-    return -1;
-  }
+
+  uint8_t value;
 
   // Reset: put device to sleep so we can configure the prescaler.
-  if (write_register(PCA9685_MODE1, PCA9685_MODE1_SLEEP) < 0)
+  value = PCA9685_MODE1_SLEEP;
+  if (i2c_transaction.write(PCA9685_MODE1, &value, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set sleep mode" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to set sleep mode", __func__);
     return -1;
   }
 
-  // Set default PWM frequency.
-  if (set_pwm_frequency(PCA9685_DEFAULT_FREQ) < 0)
+  if (set_pwm_frequency_unlocked(i2c_transaction, PCA9685_DEFAULT_FREQ) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set default PWM frequency" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to set default PWM frequency", __func__);
     return -1;
   }
 
   // Configure MODE2: totem-pole outputs, outputs change on STOP.
-  if (write_register(PCA9685_MODE2, PCA9685_MODE2_OUTDRV) < 0)
+  value = PCA9685_MODE2_OUTDRV;
+  if (i2c_transaction.write(PCA9685_MODE2, &value, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to configure MODE2" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to configure MODE2", __func__);
     return -1;
   }
 
   // Wake up: enable auto-increment, clear sleep bit.
-  if (write_register(PCA9685_MODE1, PCA9685_MODE1_AI | PCA9685_MODE1_ALLCALL) < 0)
+  value = PCA9685_MODE1_AI | PCA9685_MODE1_ALLCALL;
+  if (i2c_transaction.write(PCA9685_MODE1, &value, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to wake device" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to wake device", __func__);
     return -1;
   }
 
   // The oscillator needs 500 us to stabilize after wake-up.
-  usleep(500);
+  std::this_thread::sleep_for(std::chrono::microseconds(500));
 
   // Turn off all channels.
-  set_all_pwm(0, 0);
+  uint8_t zero = 0;
+  if (
+    i2c_transaction.write(PCA9685_ALL_LED_ON_L, &zero, 1) < 0 ||
+    i2c_transaction.write(PCA9685_ALL_LED_ON_H, &zero, 1) < 0 ||
+    i2c_transaction.write(PCA9685_ALL_LED_OFF_L, &zero, 1) < 0 ||
+    i2c_transaction.write(PCA9685_ALL_LED_OFF_H, &zero, 1) < 0)
+  {
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to turn off all channels", __func__);
+    return -1;
+  }
 
   initialized_ = true;
-  std::cout << __PRETTY_FUNCTION__ << ": Initialization done" << std::endl;
+  RCLCPP_INFO(logger(log_name_), "%s: Initialization done", __func__);
   return 0;
 }
 
-int Pca9685::set_pwm_frequency(double freq_hz)
+int Pca9685::set_pwm_frequency_unlocked(Transaction & i2c_transaction, double freq_hz)
 {
   // Clamp to the valid range (datasheet: 24 Hz – 1526 Hz).
   freq_hz = std::clamp(freq_hz, 24.0, 1526.0);
@@ -109,69 +137,89 @@ int Pca9685::set_pwm_frequency(double freq_hz)
 
   // The prescaler can only be set while the device is in sleep mode.
   uint8_t old_mode = 0;
-  if (read_register(PCA9685_MODE1, old_mode) < 0)
+  if (i2c_transaction.read(PCA9685_MODE1, &old_mode, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to read MODE1" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to read MODE1", __func__);
     return -1;
   }
 
   uint8_t sleep_mode = (old_mode & ~PCA9685_MODE1_RESTART) | PCA9685_MODE1_SLEEP;
-  if (write_register(PCA9685_MODE1, sleep_mode) < 0)
+  if (i2c_transaction.write(PCA9685_MODE1, &sleep_mode, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to enter sleep mode for prescaler change" << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Failed to enter sleep mode for prescaler change", __func__);
     return -1;
   }
 
-  if (write_register(PCA9685_PRE_SCALE, prescale) < 0)
+  if (i2c_transaction.write(PCA9685_PRE_SCALE, &prescale, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set prescaler to "
-              << static_cast<int>(prescale) << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Failed to set prescaler to %d", __func__, static_cast<int>(prescale));
     return -1;
   }
 
   // Restore previous mode (wake up).
-  if (write_register(PCA9685_MODE1, old_mode) < 0)
+  if (i2c_transaction.write(PCA9685_MODE1, &old_mode, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to restore MODE1 after prescaler change" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to restore MODE1 after prescaler change", __func__);
     return -1;
   }
-  usleep(500);
+  std::this_thread::sleep_for(std::chrono::microseconds(500));
 
   // Set RESTART bit to re-enable any previously active PWM channels.
-  if (write_register(PCA9685_MODE1, old_mode | PCA9685_MODE1_RESTART) < 0)
+  uint8_t restart_mode = old_mode | PCA9685_MODE1_RESTART;
+  if (i2c_transaction.write(PCA9685_MODE1, &restart_mode, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set RESTART bit" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to set RESTART bit", __func__);
     return -1;
   }
 
   pwm_frequency_ = freq_hz;
-  std::cout << __PRETTY_FUNCTION__ << ": Set frequency to " << freq_hz
-            << " Hz (prescale=" << static_cast<int>(prescale) << ")" << std::endl;
+  RCLCPP_INFO(
+    logger(log_name_), "%s: Set frequency to %.2f Hz (prescale=%d)", __func__, freq_hz,
+    static_cast<int>(prescale));
   return 0;
+}
+
+int Pca9685::set_pwm_frequency(double freq_hz)
+{
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
+  {
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to start transaction", __func__);
+    return -1;
+  }
+  return set_pwm_frequency_unlocked(i2c_transaction, freq_hz);
 }
 
 int Pca9685::set_pwm(uint8_t channel, uint16_t on, uint16_t off)
 {
   if (channel >= PCA9685_NUM_CHANNELS)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Channel " << static_cast<int>(channel)
-              << " out of range (0-15)" << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Channel %d out of range (0-15)", __func__, static_cast<int>(channel));
     return -1;
   }
 
-  uint8_t on_l = static_cast<uint8_t>(on & 0xFF);
-  uint8_t on_h = static_cast<uint8_t>((on >> 8) & 0x0F);
-  uint8_t off_l = static_cast<uint8_t>(off & 0xFF);
-  uint8_t off_h = static_cast<uint8_t>((off >> 8) & 0x0F);
+  // Send all four bytes in one auto-increment burst (MODE1_AI is set in init).
+  uint8_t payload[4] = {
+    static_cast<uint8_t>(on & 0xFF),
+    static_cast<uint8_t>((on >> 8) & 0x0F),
+    static_cast<uint8_t>(off & 0xFF),
+    static_cast<uint8_t>((off >> 8) & 0x0F),
+  };
 
-  if (
-    write_register(pca9685_led_reg(channel, 0), on_l) < 0 ||
-    write_register(pca9685_led_reg(channel, 1), on_h) < 0 ||
-    write_register(pca9685_led_reg(channel, 2), off_l) < 0 ||
-    write_register(pca9685_led_reg(channel, 3), off_h) < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set PWM for channel "
-              << static_cast<int>(channel) << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to start transaction", __func__);
+    return -1;
+  }
+  if (i2c_transaction.write(pca9685_led_reg(channel, 0), payload, sizeof(payload)) < 0)
+  {
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Failed to set PWM for channel %d", __func__,
+      static_cast<int>(channel));
     return -1;
   }
   return 0;
@@ -186,18 +234,22 @@ int Pca9685::set_duty_cycle(uint8_t channel, double duty_cycle)
 
 int Pca9685::set_all_pwm(uint16_t on, uint16_t off)
 {
-  uint8_t on_l = static_cast<uint8_t>(on & 0xFF);
-  uint8_t on_h = static_cast<uint8_t>((on >> 8) & 0x0F);
-  uint8_t off_l = static_cast<uint8_t>(off & 0xFF);
-  uint8_t off_h = static_cast<uint8_t>((off >> 8) & 0x0F);
+  uint8_t payload[4] = {
+    static_cast<uint8_t>(on & 0xFF),
+    static_cast<uint8_t>((on >> 8) & 0x0F),
+    static_cast<uint8_t>(off & 0xFF),
+    static_cast<uint8_t>((off >> 8) & 0x0F),
+  };
 
-  if (
-    write_register(PCA9685_ALL_LED_ON_L, on_l) < 0 ||
-    write_register(PCA9685_ALL_LED_ON_H, on_h) < 0 ||
-    write_register(PCA9685_ALL_LED_OFF_L, off_l) < 0 ||
-    write_register(PCA9685_ALL_LED_OFF_H, off_h) < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set all PWM channels" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to start transaction", __func__);
+    return -1;
+  }
+  if (i2c_transaction.write(PCA9685_ALL_LED_ON_L, payload, sizeof(payload)) < 0)
+  {
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to set all PWM channels", __func__);
     return -1;
   }
   return 0;
@@ -205,42 +257,50 @@ int Pca9685::set_all_pwm(uint16_t on, uint16_t off)
 
 int Pca9685::sleep()
 {
-  uint8_t mode = 0;
-  if (read_register(PCA9685_MODE1, mode) < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to read MODE1" << std::endl;
     return -1;
   }
-  return write_register(PCA9685_MODE1, mode | PCA9685_MODE1_SLEEP);
+  uint8_t mode = 0;
+  if (i2c_transaction.read(PCA9685_MODE1, &mode, 1) < 0)
+  {
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to read MODE1", __func__);
+    return -1;
+  }
+  uint8_t new_mode = mode | PCA9685_MODE1_SLEEP;
+  return i2c_transaction.write(PCA9685_MODE1, &new_mode, 1);
 }
 
 int Pca9685::wake_up()
 {
-  uint8_t mode = 0;
-  if (read_register(PCA9685_MODE1, mode) < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to read MODE1" << std::endl;
+    return -1;
+  }
+  uint8_t mode = 0;
+  if (i2c_transaction.read(PCA9685_MODE1, &mode, 1) < 0)
+  {
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to read MODE1", __func__);
     return -1;
   }
   uint8_t new_mode = mode & ~PCA9685_MODE1_SLEEP;
-  if (write_register(PCA9685_MODE1, new_mode) < 0)
+  if (i2c_transaction.write(PCA9685_MODE1, &new_mode, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to clear sleep bit" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to clear sleep bit", __func__);
     return -1;
   }
-  usleep(500);
+  std::this_thread::sleep_for(std::chrono::microseconds(500));
   // Re-enable any previously active PWM channels.
-  return write_register(PCA9685_MODE1, new_mode | PCA9685_MODE1_RESTART);
+  uint8_t restart_mode = new_mode | PCA9685_MODE1_RESTART;
+  return i2c_transaction.write(PCA9685_MODE1, &restart_mode, 1);
 }
 
 void Pca9685::stop()
 {
   set_all_pwm(0, 0);
   sleep();
-  if (i2c_interface_->is_connected())
-  {
-    i2c_interface_->close_bus();
-  }
 }
 
 }  // namespace linux_i2c_devices

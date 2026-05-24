@@ -12,6 +12,7 @@
   <depend>linux_i2c_devices</depend>
   <depend>linux_i2c_interface</depend>
 
+  <depend>generate_parameter_library</depend>
   <depend>rcl_interfaces</depend>
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>

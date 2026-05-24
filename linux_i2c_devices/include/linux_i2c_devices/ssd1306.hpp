@@ -123,112 +123,52 @@ class Ssd1306 : public Screen
 public:
   /**
    * @brief Construct an Ssd1306 driver.
-   * @param i2c_interface Shared I2C bus interface.
+   * @param i2c_interface Shared I2C bus interface (must not be null).
    * @param device_id 7-bit I2C address (typically 0x3C or 0x3D).
+   * @throws std::invalid_argument if @p i2c_interface is null.
    */
   Ssd1306(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
 
-  /**
-   * @brief Run the power-on initialisation sequence.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t initialize() override;
-
-  /**
-   * @brief Clear the framebuffer (call display() to update the screen).
-   * @return 0 on success, negative on failure.
-   */
-  int8_t clear() override;
-
-  /**
-   * @brief Flush the framebuffer to the OLED.
-   * @return 0 on success, -1 on failure.
-   */
-  int display();
-
-  /**
-   * @brief Set or clear a single pixel in the framebuffer.
-   * @param x  Column (0–127).
-   * @param y  Row (0–63).
-   * @param on true to turn the pixel on, false to turn it off.
-   */
-  void set_pixel(uint8_t x, uint8_t y, bool on = true);
-
-  /**
-   * @brief Draw a single character at a pixel position.
-   * @param x Column pixel coordinate.
-   * @param y Row pixel coordinate (top of the character cell).
-   * @param c ASCII character to draw.
-   */
-  void draw_char(uint8_t x, uint8_t y, char c);
-
-  /**
-   * @brief Move the text cursor to a character-grid position.
-   * @param row    Row index (0-based, in character rows).
-   * @param column Column index (0-based, in character columns).
-   * @return 0 on success, -1 if row or column is out of range.
-   */
-  int8_t set_cursor(uint8_t row, uint8_t column) override;
-
-  /**
-   * @brief Print a single character at the current text cursor and advance it.
-   * @param c Character to print.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t print_char(char c) override;
-
-  /**
-   * @brief Print a string starting at the current cursor, wrapping across rows.
-   *
-   * Calls display() automatically after rendering.
-   *
-   * @param msg The message to display.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t print_msg(const std::string & msg) override;
-
-  /**
-   * @brief Turn the display off and close the I2C bus.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t stop() override;
-
-  /** @brief Number of text rows the display can show. */
+  int initialize() override;
+  int clear() override;
+  int set_cursor(uint8_t row, uint8_t column) override;
+  int print_char(char c) override;
+  int print_msg(const std::string & msg) override;
+  int stop() override;
   uint8_t get_rows() const override { return SSD1306_TEXT_ROWS; }
-
-  /** @brief Number of text columns the display can show. */
   uint8_t get_columns() const override { return SSD1306_TEXT_COLS; }
 
+  /// @brief Flush the in-memory framebuffer to the OLED.
+  int display();
+
+  /// @brief Set or clear a single pixel (@p x in 0..127, @p y in 0..63).
+  void set_pixel(uint8_t x, uint8_t y, bool on = true);
+
+  /// @brief Draw a single 5x7 character at pixel (@p x, @p y) (top of cell).
+  void draw_char(uint8_t x, uint8_t y, char c);
+
 private:
-  /**
-   * @brief Send a single command byte to the SSD1306.
-   * @param cmd Command byte.
-   * @return 0 on success, -1 on failure.
-   */
-  int send_command(uint8_t cmd);
+  using Transaction = linux_i2c_interface::I2cInterface::Transaction;
 
-  /**
-   * @brief Send a sequence of command bytes.
-   * @param cmds Pointer to the command byte array.
-   * @param count Number of bytes to send.
-   * @return 0 on success, -1 on failure.
-   */
-  int send_commands(const uint8_t * cmds, uint16_t count);
+  /// @brief Send a single command byte (within an open transaction).
+  int send_command(Transaction & i2c_transaction, uint8_t cmd);
 
-  /**
-   * @brief Send a block of pixel data to the SSD1306 GDDRAM.
-   * @param data Pointer to the data bytes.
-   * @param size Number of bytes to send.
-   * @return 0 on success, -1 on failure.
-   */
-  int send_data(const uint8_t * data, uint16_t size);
+  /// @brief Send a sequence of command bytes (within an open transaction).
+  int send_commands(Transaction & i2c_transaction, const uint8_t * cmds, uint16_t count);
 
-  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;  ///< Shared I2C bus.
-  uint8_t device_id_;           ///< 7-bit I2C slave address.
+  /// @brief Send a block of pixel data to GDDRAM (within an open transaction).
+  int send_data(Transaction & i2c_transaction, const uint8_t * data, uint16_t size);
+
+  /// @brief Flush the framebuffer using an already-open transaction.
+  int display(Transaction & i2c_transaction);
+
+  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
+  uint8_t device_id_;
+  std::string log_name_;
   uint8_t buffer_[SSD1306_BUFFER_SIZE]{};  ///< In-memory framebuffer (1024 bytes).
-  uint8_t cursor_row_{0};       ///< Current text cursor row.
-  uint8_t cursor_col_{0};       ///< Current text cursor column.
-  bool initialized_{false};     ///< Whether initialize() has completed.
+  uint8_t cursor_row_{0};
+  uint8_t cursor_col_{0};
+  bool initialized_{false};
 };
 
 }  // namespace linux_i2c_devices

@@ -89,134 +89,70 @@ constexpr uint32_t LCM1602_DELAY_40000_US = 40000;
 
 /**
  * @class Lcm1602
- * @brief Driver for the LCM1602 I2C character LCD module.
+ * @brief Driver for the LCM1602 I2C character LCD (HD44780 via PCF8574, 4-bit mode).
  *
- * The display is assumed to be wired through a PCF8574 I/O expander
- * and driven in 4-bit mode.
+ * @note Each byte is issued as a one-shot `I2cInterface::write_to_bus()` rather than
+ *       under a held `Transaction`: print_msg() and initialize() interleave many writes
+ *       with `usleep()` delays, and per-byte release minimises bus latency for other
+ *       drivers.  The LCD's sticky state (cursor) is only touched by this driver, so
+ *       device-level atomicity is not required.
  */
 class Lcm1602 : public Screen
 {
 public:
   /**
    * @brief Construct an Lcm1602 driver.
-   * @param i2c_interface Shared I2C bus interface.
+   * @param i2c_interface Shared I2C bus interface (must not be null).
    * @param device_id 7-bit I2C address of the LCD (typically 0x27).
    * @param rows Number of display rows.
    * @param columns Number of display columns.
+   * @throws std::invalid_argument if @p i2c_interface is null.
    */
   Lcm1602(
     std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id,
     uint8_t rows, uint8_t columns);
 
-  /**
-   * @brief Clear the display.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t clear() override;
-
-  /**
-   * @brief Return the cursor to the home position.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t home();
-
-  /**
-   * @brief Move the cursor to a specific position.
-   * @param row    Row index (0-based).
-   * @param column Column index (0-based).
-   * @return 0 on success, negative on failure.
-   */
-  int8_t set_cursor(uint8_t row, uint8_t column) override;
-
-  /**
-   * @brief Print a string, wrapping across rows automatically.
-   * @param msg The message to display.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t print_msg(const std::string & msg) override;
-
-  /**
-   * @brief Print a single character at the current cursor position.
-   * @param c Character to print.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t print_char(char c) override;
-
-  /**
-   * @brief Perform the power-on initialisation sequence.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t initialize() override;
-
-  /**
-   * @brief Turn the display on.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t turn_on();
-
-  /**
-   * @brief Turn the display off.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t turn_off();
-
-  /**
-   * @brief Clear the display, turn off the backlight, and close the bus.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t stop() override;
-
-  /** @brief Number of text rows the display can show. */
+  int clear() override;
+  int set_cursor(uint8_t row, uint8_t column) override;
+  int print_msg(const std::string & msg) override;
+  int print_char(char c) override;
+  int initialize() override;
+  int stop() override;
   uint8_t get_rows() const override { return rows_; }
-
-  /** @brief Number of text columns the display can show. */
   uint8_t get_columns() const override { return columns_; }
 
-  /**
-   * @brief Send a command byte to the display.
-   * @param value    Command byte.
-   * @param delay_us Delay in microseconds after the command.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t command(uint8_t value, uint32_t delay_us = 0);
+  /// @brief Return the cursor to the home position.
+  int home();
 
-  /**
-   * @brief Write a byte in command or data mode.
-   * @param value Byte to send.
-   * @param mode  LCM1602_CMD or LCM1602_RS.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t write(uint8_t value, uint8_t mode);
+  /// @brief Turn the display on.
+  int turn_on();
 
-  /**
-   * @brief Write the upper nibble to the bus.
-   * @param value Upper 4 bits to send.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t write_4bits(uint8_t value);
+  /// @brief Turn the display off.
+  int turn_off();
 
-  /**
-   * @brief Send a raw byte to the I2C expander.
-   * @param value    Byte (combined with backlight state).
-   * @param delay_us Delay in microseconds after the send.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t send(uint8_t value, uint32_t delay_us = 0);
+  /// @brief Send a command byte, then wait @p delay_us microseconds.
+  int command(uint8_t value, uint32_t delay_us = 0);
 
-  /**
-   * @brief Pulse the enable pin to latch data.
-   * @param value Current data nibble on the bus.
-   * @return 0 on success, negative on failure.
-   */
-  int8_t pulse_enable(uint8_t value);
+  /// @brief Write a byte in command (LCM1602_CMD) or data (LCM1602_RS) mode.
+  int write(uint8_t value, uint8_t mode);
+
+  /// @brief Send the upper nibble of @p value via the PCF8574 expander.
+  int write_4bits(uint8_t value);
+
+  /// @brief Write a raw byte (OR'd with backlight state), then wait @p delay_us.
+  int send(uint8_t value, uint32_t delay_us = 0);
+
+  /// @brief Pulse the enable pin to latch the current nibble on the bus.
+  int pulse_enable(uint8_t value);
 
 private:
-  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;  ///< Shared I2C bus.
-  uint8_t device_id_;   ///< 7-bit I2C slave address.
-  uint8_t rows_;        ///< Number of display rows.
-  uint8_t columns_;     ///< Number of display columns.
-  uint8_t backlight_;   ///< Current backlight state.
-  bool initialized_;    ///< Whether initialize() has completed.
+  std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
+  uint8_t device_id_;
+  std::string log_name_;
+  uint8_t rows_;
+  uint8_t columns_;
+  uint8_t backlight_;
+  bool initialized_;
 };
 
 }  // namespace linux_i2c_devices

@@ -21,6 +21,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -31,123 +33,182 @@ namespace linux_i2c_interface
  * @class I2cInterface
  * @brief Provides thread-safe read/write access to a Linux I2C bus.
  *
- * All public bus operations are serialised with an internal mutex so that a
- * single I2cInterface instance can be shared safely between threads.
+ * The underlying `/dev/i2c-N` file descriptor is owned by the interface:
+ * it is opened lazily on the first transaction and closed automatically
+ * when the `I2cInterface` is destroyed.  If a transient bus error causes
+ * the fd to be closed mid-run, the next transaction transparently reopens
+ * it.  Drivers never call open/close themselves.
+ *
+ * Two access patterns are supported:
+ *
+ *  1. **Single-call atomic operation** (`write_to_bus(device_id, addr)`):
+ *     atomically opens (if needed), selects the slave, and performs the
+ *     transfer under the internal mutex.  Use this for one-shot single-byte
+ *     writes to a known device.
+ *
+ *  2. **Transactions** (preferred for multi-step sequences and for sharing
+ *     one interface across many devices): `begin_transaction(device_id)`
+ *     returns an RAII guard that holds the bus mutex for its lifetime and
+ *     keeps the requested slave selected.  All `Transaction` methods are
+ *     unlocked primitives, so multi-step sequences (e.g. SSD1306
+ *     column+page+data) execute as one logical bus transaction.
+ *
+ * **Error reporting.** All transfer methods return 0 on success and -1 on
+ * failure.  On failure, `errno` always carries a cause:
+ *   - syscall errnos (`EIO`, `ENXIO`, `ENODEV`, `EBADF`, `ETIMEDOUT`, `ENOENT`,
+ *     `EACCES`, ...) propagate unchanged from `open()` / `ioctl()` / `read()` /
+ *     `write()`;
+ *   - `ENOTCONN` means the transaction failed to acquire the bus or select the
+ *     slave (use a fresh `begin_transaction()`);
+ *   - `EIO` is also used for short writes;
+ *   - `EINVAL` means a programming error (e.g. read with no slave selected).
+ *
+ * **Sharing one bus across many devices.** All drivers on the same physical
+ * bus must share the *same* `I2cInterface` instance, otherwise each gets its
+ * own mutex and transfers will interleave on the wire.  Use `get_shared()` to
+ * obtain a process-wide `std::shared_ptr<I2cInterface>` keyed by bus path; it
+ * returns the same instance for repeated calls and frees it when the last
+ * driver releases its `shared_ptr`.
  */
 class I2cInterface
 {
 public:
   /**
+   * @class Transaction
+   * @brief RAII scoped bus reservation for safe multi-step I2C sequences.
+   *
+   * Construction acquires the bus mutex and selects the target slave; the lock
+   * is released on destruction (or move).  Transfer methods are unlocked
+   * primitives run while the lock is held.  Move-only; hold only as long as
+   * needed since other drivers cannot use the same bus meanwhile.
+   */
+  class Transaction
+  {
+  public:
+    Transaction(const Transaction &) = delete;
+    Transaction & operator=(const Transaction &) = delete;
+    Transaction(Transaction && other) noexcept;
+    Transaction & operator=(Transaction && other) noexcept;
+    ~Transaction();
+
+    /// @brief True if the bus is open and the slave was selected successfully.
+    bool ok() const { return ok_; }
+
+    /// @brief Write a register address followed by a payload.
+    int write(uint8_t address, const void * data, uint32_t count);
+
+    /// @brief Write a single command byte (no payload).
+    int write_cmd(uint8_t address);
+
+    /// @brief Read bytes from the selected device.
+    int read(uint8_t address, void * data, uint32_t count);
+
+    /// @brief Write a raw buffer as a single I2C transfer (no register prefix).
+    int write_raw(const void * data, uint32_t count);
+
+  private:
+    friend class I2cInterface;
+    Transaction(I2cInterface & iface, uint8_t device_id);
+
+    I2cInterface * iface_;
+    std::unique_lock<std::mutex> lock_;
+    bool ok_;
+  };
+
+  /**
    * @brief Construct an I2C interface from a full device path.
    * @param i2c_bus Device path, e.g. "/dev/i2c-1".
+   * @param eager_open If true, open the bus in the constructor and throw on
+   *        failure; if false (default), the bus is opened lazily on the first
+   *        transaction.  Use eager open to fail fast on a typo or permissions
+   *        problem at startup instead of silently failing every transfer.
+   * @throws std::invalid_argument if @p i2c_bus is empty.
+   * @throws std::runtime_error if @p eager_open is true and the bus cannot be opened.
    */
-  explicit I2cInterface(const std::string & i2c_bus);
+  explicit I2cInterface(const std::string & i2c_bus, bool eager_open = false);
 
   /**
    * @brief Construct an I2C interface from a bus number.
    * @param i2c_bus_number Bus index (e.g. 1 → "/dev/i2c-1").
+   * @param eager_open See string-path constructor.
+   * @throws std::runtime_error if @p eager_open is true and the bus cannot be opened.
    */
-  explicit I2cInterface(uint8_t i2c_bus_number);
+  explicit I2cInterface(uint8_t i2c_bus_number, bool eager_open = false);
+
+  /// @brief Close the bus fd if it is open.
+  ~I2cInterface();
+
+  I2cInterface(const I2cInterface &) = delete;
+  I2cInterface & operator=(const I2cInterface &) = delete;
 
   /**
-   * @brief Open the I2C bus file descriptor.
-   * @return 0 on success, -1 on failure.
-   */
-  int8_t open_bus();
-
-  /**
-   * @brief Close the I2C bus file descriptor.
-   * @return 0 on success, negative value on failure.
-   */
-  int8_t close_bus();
-
-  /**
-   * @brief Check whether the bus is currently open.
-   * @return true if connected.
-   */
-  bool is_connected() const;
-
-  /**
-   * @brief Select the active I2C slave device.
-   * @param device_id 7-bit I2C slave address.
-   * @return 0 on success, negative value on failure.
-   */
-  int8_t set_device_id(uint8_t device_id);
-
-  /**
-   * @brief Read bytes from the currently selected device.
-   * @param address Register address to read from.
-   * @param[out] data Buffer to receive the data.
-   * @param count Number of bytes to read.
-   * @return 0 on success, -1 on failure.
-   */
-  int8_t read_from_bus(uint8_t address, void * data, uint32_t count);
-
-  /**
-   * @brief Write a single command byte (no payload) to the bus.
-   * @param address Command/register byte to send.
-   * @return 0 on success, -1 on failure.
-   */
-  int8_t write_to_bus(uint8_t address);
-
-  /**
-   * @brief Select a device and write a single command byte.
-   * @param device_id 7-bit I2C slave address.
-   * @param address Command/register byte to send.
-   * @return 0 on success, negative value on failure.
-   */
-  int8_t write_to_bus(uint8_t device_id, uint8_t address);
-
-  /**
-   * @brief Write a register address followed by a data payload.
-   * @param address Register address byte.
-   * @param data Pointer to the payload bytes.
-   * @param count Number of payload bytes to write.
-   * @return 0 on success, -1 on failure.
-   */
-  int8_t write_to_bus(uint8_t address, void * data, uint32_t count);
-
-  /**
-   * @brief Write a raw byte buffer as a single I2C transaction.
+   * @brief Begin a scoped multi-step I2C transaction.
    *
-   * Unlike write_to_bus(), the entire buffer (including any control or
-   * register bytes) is sent in one write() call so that the device sees a
-   * single START … STOP sequence.  This is required by devices such as the
-   * SSD1306 OLED controller.
+   * Lazily opens the bus if needed, acquires the bus mutex, and selects
+   * @p device_id.  All subsequent calls via the returned guard execute
+   * atomically; the lock is released when the guard is destroyed.
    *
-   * @param data  Pointer to the complete byte sequence to send.
-   * @param count Number of bytes.
-   * @return 0 on success, -1 on failure.
+   * @return RAII transaction guard; check `ok()` before use.
    */
-  int8_t write_raw(const void * data, uint32_t count);
+  Transaction begin_transaction(uint8_t device_id);
+
+  /**
+   * @brief Atomically open (if needed), select @p device_id, and write a single
+   *        command byte.  For multi-byte sequences use begin_transaction().
+   */
+  int write_to_bus(uint8_t device_id, uint8_t address);
+
+  /// @brief Device path this interface was constructed with (e.g. "/dev/i2c-1").
+  const std::string & bus_name() const { return i2c_bus_; }
+
+  /**
+   * @brief Get the process-wide shared interface for @p i2c_bus.
+   *
+   * Returns the existing instance if one is still alive, otherwise constructs
+   * a new one.  Ensures every driver on the same physical bus shares one
+   * mutex.  Thread-safe.
+   *
+   * @throws std::invalid_argument / std::runtime_error per the constructor.
+   */
+  static std::shared_ptr<I2cInterface> get_shared(
+    const std::string & i2c_bus, bool eager_open = false);
+
+  /// @brief Bus-number overload of get_shared().
+  static std::shared_ptr<I2cInterface> get_shared(uint8_t i2c_bus_number, bool eager_open = false);
 
 private:
-  std::string i2c_bus_;             ///< Device path (e.g. "/dev/i2c-1").
-  int i2c_fd_{-1};                  ///< File descriptor for the open bus.
-  std::mutex i2c_mutex_;            ///< Serialises all bus operations.
+  std::string i2c_bus_;                    ///< Device path (e.g. "/dev/i2c-1").
+  std::string log_name_;                   ///< Logger name (e.g. "linux_i2c_interface.i2c-1").
+  int i2c_fd_{-1};                         ///< File descriptor for the open bus.
+  std::mutex i2c_mutex_;                   ///< Serialises all bus operations.
   std::atomic<bool> is_connected_{false};  ///< Whether the bus is currently open.
+  int current_device_id_{-1};              ///< Last selected slave (cache, -1 = unknown).
+  int last_open_errno_{0};                 ///< Errno from last open failure (for log dedup).
 
-  /**
-   * @brief Internal helper to close the bus without locking the mutex.
-   * @return 0 on success, negative value on failure.
-   *
-   * Must only be called while i2c_mutex_ is already held.
-   */
-  int8_t close_bus_unlocked();
+  /// @brief Open the bus fd (mutex must already be held). No-op if open.
+  int open_bus_unlocked();
 
-  /**
-   * @brief Internal helper to select the active slave without locking.
-   *
-   * Must only be called while i2c_mutex_ is already held.
-   */
-  int8_t set_device_id_unlocked(uint8_t device_id);
+  /// @brief Close the bus (mutex must already be held).
+  int close_bus_unlocked();
 
-  /**
-   * @brief Internal helper to write address + payload without locking.
-   *
-   * Must only be called while i2c_mutex_ is already held.
-   */
-  int8_t write_to_bus_unlocked(uint8_t address, void * data, uint32_t count);
+  /// @brief Select the active slave (mutex must already be held).
+  int set_device_id_unlocked(uint8_t device_id);
+
+  /// @brief Select the active slave only if it differs from the cached one.
+  int ensure_device_unlocked(uint8_t device_id);
+
+  /// @brief Address + payload write (mutex must already be held).
+  int write_to_bus_unlocked(uint8_t address, const void * data, uint32_t count);
+
+  /// @brief Register read (mutex must already be held).
+  int read_from_bus_unlocked(uint8_t address, void * data, uint32_t count);
+
+  /// @brief Raw write (mutex must already be held).
+  int write_raw_unlocked(const void * data, uint32_t count);
+
+  /// @brief Registry for get_shared(): bus path -> weak handle.
+  static std::mutex registry_mutex_;
+  static std::map<std::string, std::weak_ptr<I2cInterface>> registry_;
 };
 
 }  // namespace linux_i2c_interface

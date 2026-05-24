@@ -17,11 +17,8 @@
  * @brief ROS 2 node that subscribes to /rosout and displays log messages on
  *        an I2C screen (LCM1602 LCD or SSD1306 OLED), filtered by severity.
  *
- * ROS parameters:
- *  - display_type      (string, default "lcm1602") : "lcm1602" or "ssd1306".
- *  - i2c_bus           (int, default 1)            : I2C bus number.
- *  - device_id         (int, default depends on display_type) : 7-bit I2C address.
- *  - min_logger_level  (int, default 20 = INFO)    : Minimum rcl_interfaces/Log level.
+ * Parameters are declared via generate_parameter_library; see
+ * screen_rosout_logger_parameters.yaml for the schema.
  */
 
 #include <algorithm>
@@ -30,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "linux_i2c_demos/screen_rosout_logger_parameters.hpp"
 #include "linux_i2c_devices/lcm1602.hpp"
 #include "linux_i2c_devices/screen.hpp"
 #include "linux_i2c_devices/ssd1306.hpp"
@@ -38,68 +36,34 @@
 #include <rcl_interfaces/msg/log.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-/**
- * @class ScreenRosoutLogger
- * @brief Displays /rosout log messages on an I2C screen, filtered by severity.
- *
- * New messages appear on the bottom row; older messages scroll upward.
- */
 class ScreenRosoutLogger : public rclcpp::Node
 {
 public:
-  ScreenRosoutLogger()
-  : Node("screen_rosout_logger")
+  ScreenRosoutLogger() : Node("screen_rosout_logger")
   {
-    this->declare_parameter<std::string>("display_type", "lcm1602");
-    this->declare_parameter<int>("i2c_bus", 1);
-    this->declare_parameter<int>("min_logger_level", rcl_interfaces::msg::Log::INFO);
-
-    std::string display_type = this->get_parameter("display_type").as_string();
-    int i2c_bus = this->get_parameter("i2c_bus").as_int();
-    min_logger_level_ =
-      static_cast<uint8_t>(this->get_parameter("min_logger_level").as_int());
+    param_listener_ =
+      std::make_shared<screen_rosout_logger::ParamListener>(this->get_node_parameters_interface());
+    const auto params = param_listener_->get_params();
 
     auto i2c_interface =
-      std::make_shared<linux_i2c_interface::I2cInterface>(static_cast<uint8_t>(i2c_bus));
+      std::make_shared<linux_i2c_interface::I2cInterface>(static_cast<uint8_t>(params.i2c_bus));
 
-    if (display_type == "ssd1306")
+    if (params.display_type == "ssd1306")
     {
-      this->declare_parameter<int>(
-        "device_id", linux_i2c_devices::SSD1306_DEFAULT_ADDRESS);
-      int device_id = this->get_parameter("device_id").as_int();
-
       screen_ = std::make_unique<linux_i2c_devices::Ssd1306>(
-        i2c_interface, static_cast<uint8_t>(device_id));
-
+        i2c_interface, static_cast<uint8_t>(params.device_id));
       RCLCPP_INFO(
-        this->get_logger(), "SSD1306 OLED on bus %d at address 0x%02X",
-        i2c_bus, device_id);
-    }
-    else if (display_type == "lcm1602")
-    {
-      this->declare_parameter<int>("device_id", 0x27);
-      this->declare_parameter<int>("rows", 4);
-      this->declare_parameter<int>("columns", 20);
-      int device_id = this->get_parameter("device_id").as_int();
-      int rows = this->get_parameter("rows").as_int();
-      int columns = this->get_parameter("columns").as_int();
-
-      screen_ = std::make_unique<linux_i2c_devices::Lcm1602>(
-        i2c_interface, static_cast<uint8_t>(device_id),
-        static_cast<uint8_t>(rows), static_cast<uint8_t>(columns));
-
-      RCLCPP_INFO(
-        this->get_logger(), "LCM1602 LCD on bus %d at address 0x%02X (%dx%d)",
-        i2c_bus, device_id, columns, rows);
+        this->get_logger(), "SSD1306 OLED on bus %ld at address 0x%02lX", params.i2c_bus,
+        params.device_id);
     }
     else
     {
-      RCLCPP_FATAL(
-        this->get_logger(),
-        "Unknown display_type '%s'. Supported: lcm1602, ssd1306",
-        display_type.c_str());
-      rclcpp::shutdown();
-      return;
+      screen_ = std::make_unique<linux_i2c_devices::Lcm1602>(
+        i2c_interface, static_cast<uint8_t>(params.device_id), static_cast<uint8_t>(params.rows),
+        static_cast<uint8_t>(params.columns));
+      RCLCPP_INFO(
+        this->get_logger(), "LCM1602 LCD on bus %ld at address 0x%02lX (%ldx%ld)", params.i2c_bus,
+        params.device_id, params.columns, params.rows);
     }
 
     if (screen_->initialize() < 0)
@@ -116,8 +80,7 @@ public:
     line_buffer_.assign(rows, std::string(cols, ' '));
 
     sub_log_ = this->create_subscription<rcl_interfaces::msg::Log>(
-      "/rosout", 100,
-      std::bind(&ScreenRosoutLogger::log_callback, this, std::placeholders::_1));
+      "/rosout", 100, std::bind(&ScreenRosoutLogger::log_callback, this, std::placeholders::_1));
   }
 
   ~ScreenRosoutLogger()
@@ -153,13 +116,12 @@ private:
         ss << "[FATAL] ";
         break;
       default:
-        ss << log_msg->level << " ";
+        ss << static_cast<int>(log_msg->level) << " ";
     }
     ss << "[" << log_msg->name << "] " << log_msg->msg;
     return ss.str();
   }
 
-  /// Pad or truncate a string to exactly @p cols characters.
   std::string fit_to_row(const std::string & text) const
   {
     uint8_t cols = screen_->get_columns();
@@ -170,18 +132,16 @@ private:
 
   void log_callback(const rcl_interfaces::msg::Log::SharedPtr log_msg)
   {
-    if (log_msg->level < min_logger_level_)
+    const auto params = param_listener_->get_params();
+    if (log_msg->level < params.min_logger_level)
     {
       return;
     }
 
     uint8_t rows = screen_->get_rows();
-
-    // Scroll the buffer up by one row and place the new message on the last row.
     std::rotate(line_buffer_.begin(), line_buffer_.begin() + 1, line_buffer_.end());
     line_buffer_[rows - 1] = fit_to_row(log_to_string(log_msg));
 
-    // Redraw every row.
     if (screen_->clear() < 0)
     {
       RCLCPP_ERROR(this->get_logger(), "Failed to clear screen");
@@ -199,10 +159,10 @@ private:
     }
   }
 
-  rclcpp::Subscription<rcl_interfaces::msg::Log>::SharedPtr sub_log_;  ///< /rosout subscription.
-  std::unique_ptr<linux_i2c_devices::Screen> screen_;  ///< Active screen device.
-  uint8_t min_logger_level_;  ///< Minimum log severity to display.
-  std::vector<std::string> line_buffer_;  ///< Circular line buffer for display rows.
+  std::shared_ptr<screen_rosout_logger::ParamListener> param_listener_;
+  rclcpp::Subscription<rcl_interfaces::msg::Log>::SharedPtr sub_log_;
+  std::unique_ptr<linux_i2c_devices::Screen> screen_;
+  std::vector<std::string> line_buffer_;
 };
 
 int main(int argc, char * argv[])

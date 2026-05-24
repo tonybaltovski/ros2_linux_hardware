@@ -17,12 +17,16 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(generate_parameter_library REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(linux_i2c_devices REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
 
+generate_parameter_library(screen_rosout_logger_parameters
+  src/screen_rosout_logger_parameters.yaml
+)
 add_executable(screen_rosout_logger src/screen_rosout_logger.cpp)
 target_link_libraries(screen_rosout_logger
   linux_i2c_devices::linux_i2c_devices
@@ -30,27 +34,40 @@ target_link_libraries(screen_rosout_logger
   rclcpp::rclcpp
   ${rcl_interfaces_TARGETS}
   ${std_msgs_TARGETS}
+  screen_rosout_logger_parameters
 )
 
+generate_parameter_library(screen_from_str_topic_parameters
+  src/screen_from_str_topic_parameters.yaml
+)
 add_executable(screen_from_str_topic src/screen_from_str_topic.cpp)
 target_link_libraries(screen_from_str_topic
   linux_i2c_devices::linux_i2c_devices
   linux_i2c_interface::linux_i2c_interface
   rclcpp::rclcpp
   ${std_msgs_TARGETS}
+  screen_from_str_topic_parameters
 )
 
+generate_parameter_library(pca9685_servo_control_parameters
+  src/pca9685_servo_control_parameters.yaml
+)
 add_executable(pca9685_servo_control src/pca9685_servo_control.cpp)
 target_link_libraries(pca9685_servo_control
   linux_i2c_devices::linux_i2c_devices
   linux_i2c_interface::linux_i2c_interface
   rclcpp::rclcpp
   ${std_msgs_TARGETS}
+  pca9685_servo_control_parameters
 )
 
 install(TARGETS
   screen_rosout_logger screen_from_str_topic pca9685_servo_control
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

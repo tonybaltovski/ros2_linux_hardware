@@ -17,49 +17,34 @@
  * @brief ROS 2 node that drives servos on a PCA9685 board via
  *        std_msgs/Float64MultiArray messages.
  *
- * The node subscribes to ~/servo_commands and expects an array of duty-cycle
- * values (0.0-1.0), one per channel.  For standard hobby servos at 50 Hz the
- * useful range is roughly 0.025 (1 ms pulse / full-left) to 0.125 (2.5 ms
- * pulse / full-right).
- *
- * ROS parameters:
- *  - i2c_bus      (int, default 1)    : I2C bus number.
- *  - device_id    (int, default 0x40) : 7-bit I2C address.
- *  - pwm_frequency (double, default 50.0) : PWM frequency in Hz.
+ * Parameters are declared via generate_parameter_library; see
+ * pca9685_servo_control_parameters.yaml for the schema.
  */
 
 #include <memory>
 #include <vector>
 
+#include "linux_i2c_demos/pca9685_servo_control_parameters.hpp"
 #include "linux_i2c_devices/pca9685.hpp"
 #include "linux_i2c_interface/i2c_interface.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 
-/**
- * @class Pca9685ServoControl
- * @brief Drives PCA9685 PWM channels from a Float64MultiArray topic.
- */
 class Pca9685ServoControl : public rclcpp::Node
 {
 public:
-  Pca9685ServoControl()
-  : Node("pca9685_servo_control")
+  Pca9685ServoControl() : Node("pca9685_servo_control")
   {
-    this->declare_parameter<int>("i2c_bus", 1);
-    this->declare_parameter<int>("device_id", linux_i2c_devices::PCA9685_DEFAULT_ADDRESS);
-    this->declare_parameter<double>("pwm_frequency", linux_i2c_devices::PCA9685_DEFAULT_FREQ);
+    param_listener_ =
+      std::make_shared<pca9685_servo_control::ParamListener>(this->get_node_parameters_interface());
+    const auto params = param_listener_->get_params();
 
-    int i2c_bus = this->get_parameter("i2c_bus").as_int();
-    int device_id = this->get_parameter("device_id").as_int();
-    double pwm_freq = this->get_parameter("pwm_frequency").as_double();
-
-    auto i2c_interface = std::make_shared<linux_i2c_interface::I2cInterface>(
-      static_cast<uint8_t>(i2c_bus));
+    auto i2c_interface =
+      std::make_shared<linux_i2c_interface::I2cInterface>(static_cast<uint8_t>(params.i2c_bus));
 
     pca9685_ = std::make_unique<linux_i2c_devices::Pca9685>(
-      i2c_interface, static_cast<uint8_t>(device_id));
+      i2c_interface, static_cast<uint8_t>(params.device_id));
 
     if (pca9685_->initialize() < 0)
     {
@@ -68,7 +53,7 @@ public:
       return;
     }
 
-    if (pca9685_->set_pwm_frequency(pwm_freq) < 0)
+    if (pca9685_->set_pwm_frequency(params.pwm_frequency) < 0)
     {
       RCLCPP_FATAL(this->get_logger(), "Failed to set PWM frequency");
       rclcpp::shutdown();
@@ -76,8 +61,8 @@ public:
     }
 
     RCLCPP_INFO(
-      this->get_logger(), "PCA9685 ready on bus %d at address 0x%02X (%.1f Hz)",
-      i2c_bus, device_id, pwm_freq);
+      this->get_logger(), "PCA9685 ready on bus %ld at address 0x%02lX (%.1f Hz)", params.i2c_bus,
+      params.device_id, params.pwm_frequency);
 
     sub_servo_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
       "~/servo_commands", 10,
@@ -95,6 +80,11 @@ public:
 private:
   void servo_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
   {
+    if (param_listener_->is_old(param_listener_->get_params()))
+    {
+      const auto params = param_listener_->get_params();
+      pca9685_->set_pwm_frequency(params.pwm_frequency);
+    }
     for (size_t i = 0; i < msg->data.size() && i < linux_i2c_devices::PCA9685_NUM_CHANNELS; ++i)
     {
       if (pca9685_->set_duty_cycle(static_cast<uint8_t>(i), msg->data[i]) < 0)
@@ -104,8 +94,9 @@ private:
     }
   }
 
-  std::unique_ptr<linux_i2c_devices::Pca9685> pca9685_;  ///< PCA9685 driver instance.
-  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_servo_;  ///< Servo command subscription.
+  std::shared_ptr<pca9685_servo_control::ParamListener> param_listener_;
+  std::unique_ptr<linux_i2c_devices::Pca9685> pca9685_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_servo_;
 };
 
 int main(int argc, char * argv[])

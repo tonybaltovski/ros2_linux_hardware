@@ -1,0 +1,37 @@
+screen_rosout_logger:
+  display_type:
+    type: string
+    default_value: "lcm1602"
+    description: "Display type: 'lcm1602' or 'ssd1306'."
+    validation:
+      one_of<>: [["lcm1602", "ssd1306"]]
+  i2c_bus:
+    type: int
+    default_value: 1
+    description: "I2C bus number (e.g. 1 → /dev/i2c-1)."
+    validation:
+      bounds<>: [0, 255]
+  device_id:
+    type: int
+    default_value: 0x27
+    description: "7-bit I2C address. Defaults to 0x27 (LCM1602). Use 0x3C for SSD1306."
+    validation:
+      bounds<>: [0, 127]
+  rows:
+    type: int
+    default_value: 4
+    description: "Number of display rows (LCM1602 only)."
+    validation:
+      bounds<>: [1, 4]
+  columns:
+    type: int
+    default_value: 20
+    description: "Number of display columns (LCM1602 only)."
+    validation:
+      bounds<>: [1, 40]
+  min_logger_level:
+    type: int
+    default_value: 20
+    description: "Minimum rcl_interfaces/Log level to display (10=DEBUG, 20=INFO, 30=WARN, 40=ERROR, 50=FATAL)."
+    validation:
+      bounds<>: [0, 255]

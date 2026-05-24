@@ -12,204 +12,221 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
+#include <chrono>
+#include <cstdio>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <utility>
 
 #include "linux_i2c_devices/lcm1602.hpp"
+#include "rclcpp/logging.hpp"
 
 namespace linux_i2c_devices
 {
+namespace
+{
+std::shared_ptr<linux_i2c_interface::I2cInterface> require_iface(
+  std::shared_ptr<linux_i2c_interface::I2cInterface> iface)
+{
+  if (!iface)
+  {
+    throw std::invalid_argument("Lcm1602: i2c_interface must not be null");
+  }
+  return iface;
+}
+
+std::string make_log_name(const std::string & bus, uint8_t addr)
+{
+  const auto slash = bus.find_last_of('/');
+  const std::string base = slash == std::string::npos ? bus : bus.substr(slash + 1);
+  char buf[8];
+  std::snprintf(buf, sizeof(buf), "0x%02x", static_cast<int>(addr));
+  return "lcm1602." + base + "." + buf;
+}
+rclcpp::Logger logger(const std::string & name) { return rclcpp::get_logger(name); }
+}  // namespace
 
 Lcm1602::Lcm1602(
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id, uint8_t rows,
   uint8_t columns)
-: i2c_interface_(i2c_interface),
+: i2c_interface_(require_iface(std::move(i2c_interface))),
   device_id_(device_id),
+  log_name_(make_log_name(i2c_interface_->bus_name(), device_id)),
   rows_(rows),
   columns_(columns),
   backlight_(LCM1602_BACKLIGHT_OFF),
   initialized_(false)
 {
-  i2c_interface_->open_bus();
 }
 
-int8_t Lcm1602::send(uint8_t value, uint32_t delay_us)
+int Lcm1602::send(uint8_t value, uint32_t delay_us)
 {
   uint8_t buffer = value | backlight_;
-  if (i2c_interface_->is_connected())
+  if (i2c_interface_->write_to_bus(device_id_, buffer) < 0)
   {
-    if (i2c_interface_->write_to_bus(device_id_, buffer) < 0)
-    {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to write to I2C bus" << std::endl;
-      return -1;
-    }
-  }
-  else
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": I2C interface not connected" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to write to I2C bus", __func__);
     return -1;
   }
-  usleep(delay_us);
+  std::this_thread::sleep_for(std::chrono::microseconds(delay_us));
   return 0;
 }
 
-int8_t Lcm1602::pulse_enable(uint8_t value)
+int Lcm1602::pulse_enable(uint8_t value)
 {
   if (send(value | LCM1602_EN, 1) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to send enable pulse" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to send enable pulse", __func__);
     return -1;
   }
   return send(value & ~LCM1602_EN, 50);
 }
 
-int8_t Lcm1602::write_4bits(uint8_t value)
+int Lcm1602::write_4bits(uint8_t value)
 {
   if (send(value) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to send nibble" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to send nibble", __func__);
     return -1;
   }
   return pulse_enable(value);
 }
 
-int8_t Lcm1602::write(uint8_t value, uint8_t mode)
+int Lcm1602::write(uint8_t value, uint8_t mode)
 {
   if (write_4bits((value & 0xF0) | mode) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to write high nibble" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to write high nibble", __func__);
     return -1;
   }
   return write_4bits(((value << 4) & 0xF0) | mode);
 }
 
-int8_t Lcm1602::command(uint8_t value, uint32_t delay_us)
+int Lcm1602::command(uint8_t value, uint32_t delay_us)
 {
   if (write(value, LCM1602_CMD) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to write command 0x"
-              << std::hex << static_cast<int>(value) << std::dec << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Failed to write command 0x%02x", __func__, static_cast<int>(value));
     return -1;
   }
-  usleep(delay_us);
+  std::this_thread::sleep_for(std::chrono::microseconds(delay_us));
   return 0;
 }
 
-int8_t Lcm1602::initialize()
+int Lcm1602::initialize()
 {
   if (initialized_)
   {
     return 0;
   }
 
-  std::cout << __PRETTY_FUNCTION__ << ": Starting initialization" << std::endl;
-  usleep(400000);
+  RCLCPP_INFO(logger(log_name_), "%s: Starting initialization", __func__);
+  std::this_thread::sleep_for(std::chrono::microseconds(400000));
   backlight_ = LCM1602_BACKLIGHT_ON;
   if (send(backlight_, 2000) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to enable backlight" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to enable backlight", __func__);
     return -1;
   }
 
   if (write_4bits(0x03 << 4) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed during 4-bit init sequence" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed during 4-bit init sequence", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_4000_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_4000_US));
   if (write_4bits(0x30) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed during 4-bit init sequence" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed during 4-bit init sequence", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_4000_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_4000_US));
   if (write_4bits(0x30) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed during 4-bit init sequence" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed during 4-bit init sequence", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_100_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_100_US));
   if (write_4bits(0x20) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to switch to 4-bit mode" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to switch to 4-bit mode", __func__);
     return -1;
   }
 
-  if (command(LCM1602_FUNCTIONSET | LCM1602_2LINE) < 0 ||
-      command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON) < 0 ||
-      command(LCM1602_ENTRYMODESET | LCM1602_ENTRYLEFT) < 0)
+  if (
+    command(LCM1602_FUNCTIONSET | LCM1602_2LINE) < 0 ||
+    command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON) < 0 ||
+    command(LCM1602_ENTRYMODESET | LCM1602_ENTRYLEFT) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to configure display" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to configure display", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_40000_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_40000_US));
   if (clear() < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to clear display" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to clear display", __func__);
     return -1;
   }
   if (home() < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to home cursor" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to home cursor", __func__);
     return -1;
   }
-  std::cout << __PRETTY_FUNCTION__ << ": Initialization done" << std::endl;
+  RCLCPP_INFO(logger(log_name_), "%s: Initialization done", __func__);
   initialized_ = true;
   return 0;
 }
 
-int8_t Lcm1602::stop()
+int Lcm1602::stop()
 {
-  int8_t ret = 0;
+  int ret = 0;
   if (clear() < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to clear display" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to clear display", __func__);
     ret = -1;
   }
   backlight_ = LCM1602_BACKLIGHT_OFF;
   if (send(backlight_, LCM1602_DELAY_100_US) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to turn off backlight" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to turn off backlight", __func__);
     ret = -1;
-  }
-  if (i2c_interface_->is_connected())
-  {
-    i2c_interface_->close_bus();
   }
   return ret;
 }
 
-int8_t Lcm1602::clear()
+int Lcm1602::clear()
 {
   if (command(LCM1602_CLEARDISPLAY) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to clear display" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to clear display", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_4000_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_4000_US));
   return 0;
 }
 
-int8_t Lcm1602::home()
+int Lcm1602::home()
 {
   if (command(LCM1602_RETURNHOME) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to return home" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to return home", __func__);
     return -1;
   }
-  usleep(LCM1602_DELAY_4000_US);
+  std::this_thread::sleep_for(std::chrono::microseconds(LCM1602_DELAY_4000_US));
   return 0;
 }
 
-int8_t Lcm1602::set_cursor(const uint8_t row, const uint8_t column)
+int Lcm1602::set_cursor(const uint8_t row, const uint8_t column)
 {
   static constexpr uint8_t row_offsets[] = {0, 64, 20, 84};
   uint8_t offset = (row < 4) ? row_offsets[row] : 0;
   return command(LCM1602_SETDDRAMADDR | ((column % columns_) + offset));
 }
 
-int8_t Lcm1602::print_char(char c) { return write(c, LCM1602_RS); }
+int Lcm1602::print_char(char c) { return write(c, LCM1602_RS); }
 
-int8_t Lcm1602::print_msg(const std::string & msg)
+int Lcm1602::print_msg(const std::string & msg)
 {
   for (size_t i = 0; i < msg.length(); ++i)
   {
@@ -217,27 +234,22 @@ int8_t Lcm1602::print_msg(const std::string & msg)
     uint8_t col = static_cast<uint8_t>(i % columns_);
     if (set_cursor(row, col) < 0)
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to set cursor at row "
-                << static_cast<int>(row) << " col " << static_cast<int>(col) << std::endl;
+      RCLCPP_ERROR(
+        logger(log_name_), "%s: Failed to set cursor at row %d col %d", __func__,
+        static_cast<int>(row), static_cast<int>(col));
       return -1;
     }
     if (print_char(msg[i]) < 0)
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to print character" << std::endl;
+      RCLCPP_ERROR(logger(log_name_), "%s: Failed to print character", __func__);
       return -1;
     }
   }
   return 0;
 }
 
-int8_t Lcm1602::turn_on()
-{
-  return command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON);
-}
+int Lcm1602::turn_on() { return command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON); }
 
-int8_t Lcm1602::turn_off()
-{
-  return command(LCM1602_DISPLAYCONTROL);
-}
+int Lcm1602::turn_off() { return command(LCM1602_DISPLAYCONTROL); }
 
 }  // namespace linux_i2c_devices

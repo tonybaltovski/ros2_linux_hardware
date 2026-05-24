@@ -17,6 +17,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/i2c_interface.cpp
@@ -26,6 +27,12 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  rclcpp::rclcpp
+)
+
+ament_export_dependencies(rclcpp)
 
 install(TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}

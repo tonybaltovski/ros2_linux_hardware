@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "linux_i2c_interface/i2c_interface.hpp"
 
@@ -62,15 +63,10 @@ constexpr uint8_t PCA9685_MODE2_INVRT = 0x10;       ///< Invert output logic.
 ///@}
 
 /**
- * @brief Compute the register address for a per-channel LED register.
+ * @brief Register address for a per-channel LED register.
  *
- * Each of the 16 channels (0-15) occupies four consecutive bytes starting
- * at 0x06: ON_L, ON_H, OFF_L, OFF_H.
- *
- * @param channel LED channel number (0-15).
- * @param offset  Register offset within the channel group (0 = ON_L, 1 = ON_H,
- *                2 = OFF_L, 3 = OFF_H).
- * @return Register address.
+ * Each of the 16 channels occupies four consecutive bytes starting at 0x06:
+ * ON_L, ON_H, OFF_L, OFF_H.  @p offset selects one of these (0..3).
  */
 constexpr uint8_t pca9685_led_reg(uint8_t channel, uint8_t offset)
 {
@@ -103,6 +99,9 @@ constexpr uint8_t PCA9685_NUM_CHANNELS = 16;         ///< Number of PWM channels
  * @class Pca9685
  * @brief Driver for the PCA9685 16-channel, 12-bit PWM controller.
  *
+ * Multi-register operations (e.g. set_pwm, set_pwm_frequency) are issued
+ * inside a single I2C `Transaction` so they remain atomic on a shared bus.
+ *
  * Typical usage:
  * @code
  * auto i2c = std::make_shared<linux_i2c_interface::I2cInterface>(1);
@@ -117,88 +116,46 @@ class Pca9685
 public:
   /**
    * @brief Construct a Pca9685 driver.
-   * @param i2c_interface Shared I2C bus interface.
+   * @param i2c_interface Shared I2C bus interface (must not be null).
    * @param device_id 7-bit I2C address (default 0x40).
+   * @throws std::invalid_argument if @p i2c_interface is null.
    */
   Pca9685(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
 
-  /**
-   * @brief Initialise the PCA9685.
-   *
-   * Resets the device, enables auto-increment, sets totem-pole output,
-   * configures the default PWM frequency, and wakes the oscillator.
-   *
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Initialise the PCA9685.
   int initialize();
 
-  /**
-   * @brief Set the PWM frequency for all channels.
-   * @param freq_hz Desired frequency in Hz (24-1526 Hz range).
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Set the PWM frequency for all channels (24-1526 Hz range).
   int set_pwm_frequency(double freq_hz);
 
-  /**
-   * @brief Set raw ON/OFF tick counts for a single channel.
-   * @param channel Channel number (0-15).
-   * @param on  12-bit tick count at which the output turns ON.
-   * @param off 12-bit tick count at which the output turns OFF.
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Set raw ON/OFF tick counts for a single channel.
   int set_pwm(uint8_t channel, uint16_t on, uint16_t off);
 
-  /**
-   * @brief Set the duty cycle for a single channel.
-   * @param channel    Channel number (0-15).
-   * @param duty_cycle Duty cycle in the range [0.0, 1.0].
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Set the duty cycle for a single channel (0.0 .. 1.0).
   int set_duty_cycle(uint8_t channel, double duty_cycle);
 
-  /**
-   * @brief Set raw ON/OFF tick counts for all 16 channels simultaneously.
-   * @param on  12-bit ON tick count.
-   * @param off 12-bit OFF tick count.
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Set raw ON/OFF tick counts for all 16 channels simultaneously.
   int set_all_pwm(uint16_t on, uint16_t off);
 
-  /**
-   * @brief Put the device into sleep mode (oscillator off).
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Put the device into sleep mode (oscillator off).
   int sleep();
 
-  /**
-   * @brief Wake the device from sleep mode.
-   * @return 0 on success, -1 on failure.
-   */
+  /// @brief Wake the device from sleep mode.
   int wake_up();
 
-  /** @brief Turn off all channels and close the I2C bus connection. */
+  /// @brief Turn off all channels and close the I2C bus connection.
   void stop();
 
 private:
-  /**
-   * @brief Write a single byte to a register.
-   * @param reg  Register address.
-   * @param value Byte to write.
-   * @return 0 on success, -1 on failure.
-   */
-  int write_register(uint8_t reg, uint8_t value);
+  using Transaction = linux_i2c_interface::I2cInterface::Transaction;
 
-  /**
-   * @brief Read a single byte from a register.
-   * @param reg Register address.
-   * @param[out] value Byte read.
-   * @return 0 on success, -1 on failure.
-   */
-  int read_register(uint8_t reg, uint8_t & value);
+  /// @brief Set the PWM prescaler (caller already holds the transaction lock).
+  int set_pwm_frequency_unlocked(Transaction & i2c_transaction, double freq_hz);
 
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;
   uint8_t device_id_;
-  double pwm_frequency_{PCA9685_DEFAULT_FREQ};  ///< Current PWM frequency (Hz).
+  std::string log_name_;
+  double pwm_frequency_{PCA9685_DEFAULT_FREQ};
   bool initialized_{false};
 };
 

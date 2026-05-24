@@ -12,13 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdio>
 #include <cstring>
-#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 #include "linux_i2c_devices/ssd1306.hpp"
+#include "rclcpp/logging.hpp"
 
 namespace linux_i2c_devices
 {
+namespace
+{
+std::shared_ptr<linux_i2c_interface::I2cInterface> require_iface(
+  std::shared_ptr<linux_i2c_interface::I2cInterface> iface)
+{
+  if (!iface)
+  {
+    throw std::invalid_argument("Ssd1306: i2c_interface must not be null");
+  }
+  return iface;
+}
+
+std::string make_log_name(const std::string & bus, uint8_t addr)
+{
+  const auto slash = bus.find_last_of('/');
+  const std::string base = slash == std::string::npos ? bus : bus.substr(slash + 1);
+  char buf[8];
+  std::snprintf(buf, sizeof(buf), "0x%02x", static_cast<int>(addr));
+  return "ssd1306." + base + "." + buf;
+}
+rclcpp::Logger logger(const std::string & name) { return rclcpp::get_logger(name); }
+}  // namespace
 
 // Basic 5×7 font for printable ASCII characters 0x20–0x7E for front.
 // Each character is 5 bytes, one per column, with bit 0 at the top.
@@ -124,31 +150,32 @@ static constexpr uint8_t FONT_5X7[][SSD1306_FONT_WIDTH] = {
 
 Ssd1306::Ssd1306(
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id)
-: i2c_interface_(i2c_interface), device_id_(device_id)
+: i2c_interface_(require_iface(std::move(i2c_interface))),
+  device_id_(device_id),
+  log_name_(make_log_name(i2c_interface_->bus_name(), device_id))
 {
 }
 
-int Ssd1306::send_command(uint8_t cmd)
+int Ssd1306::send_command(Transaction & i2c_transaction, uint8_t cmd)
 {
   uint8_t buf[2] = {SSD1306_CONTROL_COMMAND, cmd};
-  return i2c_interface_->write_raw(buf, sizeof(buf));
+  return i2c_transaction.write_raw(buf, sizeof(buf));
 }
 
-int Ssd1306::send_commands(const uint8_t * cmds, uint16_t count)
+int Ssd1306::send_commands(Transaction & i2c_transaction, const uint8_t * cmds, uint16_t count)
 {
   for (uint16_t i = 0; i < count; ++i)
   {
-    if (send_command(cmds[i]) < 0)
+    if (send_command(i2c_transaction, cmds[i]) < 0)
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to send command at index "
-                << i << std::endl;
+      RCLCPP_ERROR(logger(log_name_), "%s: Failed to send command at index %u", __func__, i);
       return -1;
     }
   }
   return 0;
 }
 
-int Ssd1306::send_data(const uint8_t * data, uint16_t size)
+int Ssd1306::send_data(Transaction & i2c_transaction, const uint8_t * data, uint16_t size)
 {
   // Prepend the data control byte so everything goes in a single I2C transaction.
   // Send in chunks to respect I2C buffer limits (typically 32 bytes on many adapters).
@@ -162,10 +189,9 @@ int Ssd1306::send_data(const uint8_t * data, uint16_t size)
     uint16_t remaining = size - offset;
     uint16_t len = (remaining < CHUNK_SIZE) ? remaining : CHUNK_SIZE;
     std::memcpy(&buf[1], data + offset, len);
-    if (i2c_interface_->write_raw(buf, len + 1) < 0)
+    if (i2c_transaction.write_raw(buf, len + 1) < 0)
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to write data at offset "
-                << offset << std::endl;
+      RCLCPP_ERROR(logger(log_name_), "%s: Failed to write data at offset %u", __func__, offset);
       return -1;
     }
     offset += len;
@@ -173,66 +199,71 @@ int Ssd1306::send_data(const uint8_t * data, uint16_t size)
   return 0;
 }
 
-int8_t Ssd1306::initialize()
+int Ssd1306::initialize()
 {
   if (initialized_)
   {
     return 0;
   }
 
-  std::cout << __PRETTY_FUNCTION__ << ": Starting initialization" << std::endl;
+  RCLCPP_INFO(logger(log_name_), "%s: Starting initialization", __func__);
 
-  if (i2c_interface_->open_bus() < 0)
+  auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+  if (!i2c_transaction.ok())
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to open I2C bus" << std::endl;
-    return -1;
-  }
-  if (i2c_interface_->set_device_id(device_id_) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set device ID" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to start transaction", __func__);
     return -1;
   }
 
   // Initialisation command sequence for a 128×64 SSD1306 with internal charge pump.
   const uint8_t init_cmds[] = {
     SSD1306_DISPLAY_OFF,
-    SSD1306_SET_DISPLAY_CLOCK_DIV, 0x80,
-    SSD1306_SET_MULTIPLEX, 0x3F,
-    SSD1306_SET_DISPLAY_OFFSET, 0x00,
+    SSD1306_SET_DISPLAY_CLOCK_DIV,
+    0x80,
+    SSD1306_SET_MULTIPLEX,
+    0x3F,
+    SSD1306_SET_DISPLAY_OFFSET,
+    0x00,
     SSD1306_SET_START_LINE | 0x00,
-    SSD1306_CHARGE_PUMP, 0x14,
-    SSD1306_SET_MEMORY_MODE, 0x00,
+    SSD1306_CHARGE_PUMP,
+    0x14,
+    SSD1306_SET_MEMORY_MODE,
+    0x00,
     SSD1306_SEG_REMAP | 0x01,
     SSD1306_COM_SCAN_DEC,
-    SSD1306_SET_COM_PINS, 0x12,
-    SSD1306_SET_CONTRAST, 0xCF,
-    SSD1306_SET_PRECHARGE, 0xF1,
-    SSD1306_SET_VCOM_DETECT, 0x40,
+    SSD1306_SET_COM_PINS,
+    0x12,
+    SSD1306_SET_CONTRAST,
+    0xCF,
+    SSD1306_SET_PRECHARGE,
+    0xF1,
+    SSD1306_SET_VCOM_DETECT,
+    0x40,
     SSD1306_DISPLAY_ALL_ON_RESUME,
     SSD1306_NORMAL_DISPLAY,
     SSD1306_DEACTIVATE_SCROLL,
     SSD1306_DISPLAY_ON,
   };
 
-  if (send_commands(init_cmds, sizeof(init_cmds)) < 0)
+  if (send_commands(i2c_transaction, init_cmds, sizeof(init_cmds)) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Initialization failed" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Initialization failed", __func__);
     return -1;
   }
 
   std::memset(buffer_, 0, SSD1306_BUFFER_SIZE);
-  if (display() < 0)
+  if (display(i2c_transaction) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to flush initial framebuffer" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to flush initial framebuffer", __func__);
     return -1;
   }
 
   initialized_ = true;
-  std::cout << __PRETTY_FUNCTION__ << ": Initialization done" << std::endl;
+  RCLCPP_INFO(logger(log_name_), "%s: Initialization done", __func__);
   return 0;
 }
 
-int8_t Ssd1306::clear()
+int Ssd1306::clear()
 {
   std::memset(buffer_, 0, SSD1306_BUFFER_SIZE);
   cursor_row_ = 0;
@@ -240,48 +271,67 @@ int8_t Ssd1306::clear()
   return 0;
 }
 
-int Ssd1306::display()
+int Ssd1306::display(Transaction & i2c_transaction)
 {
   // Reset the column and page pointers to the beginning of GDDRAM.
-  uint8_t col_cmd[2] = {SSD1306_CONTROL_COMMAND, SSD1306_SET_COLUMN_ADDR};
-  if (i2c_interface_->write_raw(col_cmd, 2) < 0)
+  const uint8_t addressing_cmds[] = {
+    SSD1306_SET_COLUMN_ADDR, 0, static_cast<uint8_t>(SSD1306_WIDTH - 1),
+    SSD1306_SET_PAGE_ADDR,   0, 7,
+  };
+  if (send_commands(i2c_transaction, addressing_cmds, sizeof(addressing_cmds)) < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set column address" << std::endl;
-    return -1;
-  }
-  uint8_t col_args_cmd1[2] = {SSD1306_CONTROL_COMMAND, 0};
-  if (i2c_interface_->write_raw(col_args_cmd1, 2) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set column start" << std::endl;
-    return -1;
-  }
-  uint8_t col_args_cmd2[2] = {SSD1306_CONTROL_COMMAND, SSD1306_WIDTH - 1};
-  if (i2c_interface_->write_raw(col_args_cmd2, 2) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set column end" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to set GDDRAM window", __func__);
     return -1;
   }
 
-  uint8_t page_cmd[2] = {SSD1306_CONTROL_COMMAND, SSD1306_SET_PAGE_ADDR};
-  if (i2c_interface_->write_raw(page_cmd, 2) < 0)
+  return send_data(i2c_transaction, buffer_, SSD1306_BUFFER_SIZE);
+}
+
+int Ssd1306::display()
+{
+  // The GDDRAM cursor lives in the chip and auto-advances across separate I2C
+  // transactions, so we release the bus between chunks: other drivers on the
+  // same bus can interleave instead of waiting for the full ~1 KB flush.
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set page address" << std::endl;
-    return -1;
-  }
-  uint8_t page_args_cmd1[2] = {SSD1306_CONTROL_COMMAND, 0};
-  if (i2c_interface_->write_raw(page_args_cmd1, 2) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set page start" << std::endl;
-    return -1;
-  }
-  uint8_t page_args_cmd2[2] = {SSD1306_CONTROL_COMMAND, 7};
-  if (i2c_interface_->write_raw(page_args_cmd2, 2) < 0)
-  {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to set page end" << std::endl;
-    return -1;
+    auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+    if (!i2c_transaction.ok())
+    {
+      RCLCPP_ERROR(logger(log_name_), "%s: Failed to start window transaction", __func__);
+      return -1;
+    }
+    const uint8_t addressing_cmds[] = {
+      SSD1306_SET_COLUMN_ADDR, 0, static_cast<uint8_t>(SSD1306_WIDTH - 1),
+      SSD1306_SET_PAGE_ADDR,   0, 7,
+    };
+    if (send_commands(i2c_transaction, addressing_cmds, sizeof(addressing_cmds)) < 0)
+    {
+      return -1;
+    }
   }
 
-  return send_data(buffer_, SSD1306_BUFFER_SIZE);
+  static constexpr uint16_t CHUNK_SIZE = 16;
+  uint8_t buf[CHUNK_SIZE + 1];
+  buf[0] = SSD1306_CONTROL_DATA;
+  for (uint16_t offset = 0; offset < SSD1306_BUFFER_SIZE; offset += CHUNK_SIZE)
+  {
+    const uint16_t remaining = SSD1306_BUFFER_SIZE - offset;
+    const uint16_t len = (remaining < CHUNK_SIZE) ? remaining : CHUNK_SIZE;
+    std::memcpy(&buf[1], buffer_ + offset, len);
+
+    auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+    if (!i2c_transaction.ok())
+    {
+      RCLCPP_ERROR(
+        logger(log_name_), "%s: Failed to start data transaction at offset %u", __func__, offset);
+      return -1;
+    }
+    if (i2c_transaction.write_raw(buf, len + 1) < 0)
+    {
+      RCLCPP_ERROR(logger(log_name_), "%s: Failed to write data at offset %u", __func__, offset);
+      return -1;
+    }
+  }
+  return 0;
 }
 
 void Ssd1306::set_pixel(uint8_t x, uint8_t y, bool on)
@@ -321,18 +371,20 @@ void Ssd1306::draw_char(uint8_t x, uint8_t y, char c)
   }
 }
 
-int8_t Ssd1306::set_cursor(uint8_t row, uint8_t column)
+int Ssd1306::set_cursor(uint8_t row, uint8_t column)
 {
   if (row >= SSD1306_TEXT_ROWS)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Row " << static_cast<int>(row)
-              << " out of range (max " << static_cast<int>(SSD1306_TEXT_ROWS - 1) << ")" << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Row %d out of range (max %d)", __func__, static_cast<int>(row),
+      static_cast<int>(SSD1306_TEXT_ROWS - 1));
     return -1;
   }
   if (column >= SSD1306_TEXT_COLS)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Column " << static_cast<int>(column)
-              << " out of range (max " << static_cast<int>(SSD1306_TEXT_COLS - 1) << ")" << std::endl;
+    RCLCPP_ERROR(
+      logger(log_name_), "%s: Column %d out of range (max %d)", __func__, static_cast<int>(column),
+      static_cast<int>(SSD1306_TEXT_COLS - 1));
     return -1;
   }
   cursor_row_ = row;
@@ -340,7 +392,7 @@ int8_t Ssd1306::set_cursor(uint8_t row, uint8_t column)
   return 0;
 }
 
-int8_t Ssd1306::print_char(char c)
+int Ssd1306::print_char(char c)
 {
   uint8_t px = cursor_col_ * (SSD1306_FONT_WIDTH + SSD1306_FONT_SPACING);
   uint8_t py = cursor_row_ * SSD1306_FONT_HEIGHT;
@@ -359,7 +411,7 @@ int8_t Ssd1306::print_char(char c)
   return 0;
 }
 
-int8_t Ssd1306::print_msg(const std::string & msg)
+int Ssd1306::print_msg(const std::string & msg)
 {
   for (char c : msg)
   {
@@ -367,32 +419,36 @@ int8_t Ssd1306::print_msg(const std::string & msg)
   }
   if (display() < 0)
   {
-    std::cerr << __PRETTY_FUNCTION__ << ": Failed to flush framebuffer" << std::endl;
+    RCLCPP_ERROR(logger(log_name_), "%s: Failed to flush framebuffer", __func__);
     return -1;
   }
   return 0;
 }
 
-int8_t Ssd1306::stop()
+int Ssd1306::stop()
 {
-  int8_t ret = 0;
+  int ret = 0;
   if (initialized_)
   {
-    clear();
-    if (display() < 0)
+    auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
+    if (!i2c_transaction.ok())
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to flush framebuffer" << std::endl;
       ret = -1;
     }
-    if (send_command(SSD1306_DISPLAY_OFF) < 0)
+    else
     {
-      std::cerr << __PRETTY_FUNCTION__ << ": Failed to send display-off command" << std::endl;
-      ret = -1;
+      clear();
+      if (display(i2c_transaction) < 0)
+      {
+        RCLCPP_ERROR(logger(log_name_), "%s: Failed to flush framebuffer", __func__);
+        ret = -1;
+      }
+      if (send_command(i2c_transaction, SSD1306_DISPLAY_OFF) < 0)
+      {
+        RCLCPP_ERROR(logger(log_name_), "%s: Failed to send display-off command", __func__);
+        ret = -1;
+      }
     }
-  }
-  if (i2c_interface_->is_connected())
-  {
-    i2c_interface_->close_bus();
   }
   return ret;
 }

@@ -18,6 +18,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
+find_package(rclcpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/lcm1602.cpp
@@ -34,7 +35,11 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   linux_i2c_interface::linux_i2c_interface
 )
 
-ament_export_dependencies(linux_i2c_interface)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  rclcpp::rclcpp
+)
+
+ament_export_dependencies(linux_i2c_interface rclcpp)
 
 install(TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}

@@ -1,0 +1,19 @@
+pca9685_servo_control:
+  i2c_bus:
+    type: int
+    default_value: 1
+    description: "I2C bus number (e.g. 1 → /dev/i2c-1)."
+    validation:
+      bounds<>: [0, 255]
+  device_id:
+    type: int
+    default_value: 0x40
+    description: "7-bit I2C address of the PCA9685."
+    validation:
+      bounds<>: [0, 127]
+  pwm_frequency:
+    type: double
+    default_value: 50.0
+    description: "PWM frequency in Hz."
+    validation:
+      bounds<>: [24.0, 1526.0]

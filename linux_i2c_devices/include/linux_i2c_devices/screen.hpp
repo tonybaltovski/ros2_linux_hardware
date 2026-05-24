@@ -27,60 +27,37 @@ namespace linux_i2c_devices
 
 /**
  * @class Screen
- * @brief Interface for I2C screen devices that can display text.
+ * @brief Common interface for I2C text-capable screens (LCM1602, SSD1306).
  *
- * Both the LCM1602 character LCD and SSD1306 OLED implement this interface,
- * allowing application code to be written against a single type.
+ * All @c int-returning methods return 0 on success and a negative value on failure.
  */
 class Screen
 {
 public:
   virtual ~Screen() = default;
 
-  /**
-   * @brief Perform the power-on initialisation sequence.
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t initialize() = 0;
+  /// @brief Run the power-on initialisation sequence.
+  virtual int initialize() = 0;
 
-  /**
-   * @brief Clear the display contents.
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t clear() = 0;
+  /// @brief Clear the display contents.
+  virtual int clear() = 0;
 
-  /**
-   * @brief Move the text cursor to a character-grid position.
-   * @param row    Row index (0-based).
-   * @param column Column index (0-based).
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t set_cursor(uint8_t row, uint8_t column) = 0;
+  /// @brief Move the text cursor to character-grid position (@p row, @p column), 0-based.
+  virtual int set_cursor(uint8_t row, uint8_t column) = 0;
 
-  /**
-   * @brief Print a single character at the current cursor position.
-   * @param c Character to print.
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t print_char(char c) = 0;
+  /// @brief Print one character at the current cursor.
+  virtual int print_char(char c) = 0;
 
-  /**
-   * @brief Print a string starting at the current cursor, wrapping across rows.
-   * @param msg The message to display.
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t print_msg(const std::string & msg) = 0;
+  /// @brief Print a string from the cursor, wrapping across rows.
+  virtual int print_msg(const std::string & msg) = 0;
 
-  /**
-   * @brief Shut down the display and release the I2C bus.
-   * @return 0 on success, negative on failure.
-   */
-  virtual int8_t stop() = 0;
+  /// @brief Shut down the display and release the I2C bus.
+  virtual int stop() = 0;
 
-  /** @brief Number of text rows the display can show. */
+  /// @brief Number of text rows the display can show.
   virtual uint8_t get_rows() const = 0;
 
-  /** @brief Number of text columns the display can show. */
+  /// @brief Number of text columns the display can show.
   virtual uint8_t get_columns() const = 0;
 };
 

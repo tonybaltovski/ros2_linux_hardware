@@ -17,6 +17,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - name: Install ament lint tools
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            ros-jazzy-ament-cmake-cppcheck \
+            ros-jazzy-ament-cmake-cpplint \
+            ros-jazzy-ament-cmake-lint-cmake \
+            ros-jazzy-ament-cmake-copyright
+      - name: Run pre-commit
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
+
   ros_ci:
     name: ${{ matrix.ros_distro }} CI
     runs-on: ubuntu-latest
