@@ -29,13 +29,29 @@ include_directories(${linux_i2c_devices_INCLUDE_DIRS})
 include_directories(${linux_i2c_interface_INCLUDE_DIRS})
 
 add_executable(screen_rosout_logger src/screen_rosout_logger.cpp)
-ament_target_dependencies(screen_rosout_logger linux_i2c_devices linux_i2c_interface rcl_interfaces rclcpp std_msgs)
+target_link_libraries(screen_rosout_logger
+  linux_i2c_devices::linux_i2c_devices
+  linux_i2c_interface::linux_i2c_interface
+  rclcpp::rclcpp
+  ${rcl_interfaces_TARGETS}
+  ${std_msgs_TARGETS}
+)
 
 add_executable(screen_from_str_topic src/screen_from_str_topic.cpp)
-ament_target_dependencies(screen_from_str_topic linux_i2c_devices linux_i2c_interface rclcpp std_msgs)
+target_link_libraries(screen_from_str_topic
+  linux_i2c_devices::linux_i2c_devices
+  linux_i2c_interface::linux_i2c_interface
+  rclcpp::rclcpp
+  ${std_msgs_TARGETS}
+)
 
 add_executable(pca9685_servo_control src/pca9685_servo_control.cpp)
-ament_target_dependencies(pca9685_servo_control linux_i2c_devices linux_i2c_interface rclcpp std_msgs)
+target_link_libraries(pca9685_servo_control
+  linux_i2c_devices::linux_i2c_devices
+  linux_i2c_interface::linux_i2c_interface
+  rclcpp::rclcpp
+  ${std_msgs_TARGETS}
+)
 
 install(TARGETS
   screen_rosout_logger screen_from_str_topic pca9685_servo_control

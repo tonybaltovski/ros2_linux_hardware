@@ -27,11 +27,16 @@ add_library(${PROJECT_NAME} SHARED
   src/ssd1306.cpp
 )
 
-set(DEPENDENCIES
-  linux_i2c_interface
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
-ament_target_dependencies(${PROJECT_NAME} ${DEPENDENCIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  linux_i2c_interface::linux_i2c_interface
+)
+
+ament_export_dependencies(linux_i2c_interface)
 
 install(TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}
