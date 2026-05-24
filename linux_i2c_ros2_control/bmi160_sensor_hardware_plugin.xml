@@ -1,0 +1,14 @@
+<library path="linux_i2c_ros2_control">
+  <class
+    name="linux_i2c_ros2_control/Bmi160SensorHardware"
+    type="linux_i2c_ros2_control::Bmi160SensorHardware"
+    base_class_type="hardware_interface::SensorInterface">
+    <description>
+      ros2_control SensorInterface for the Bosch BMI160 6-axis IMU over I2C.
+      Exposes the standard 10 IMU state interfaces consumed by
+      imu_sensor_broadcaster (orientation x/y/z/w, angular_velocity x/y/z,
+      linear_acceleration x/y/z). Orientation is fixed at identity since
+      the BMI160 has no on-chip fusion.
+    </description>
+  </class>
+</library>

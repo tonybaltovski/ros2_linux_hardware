@@ -75,8 +75,20 @@ target_link_libraries(hmc6343_publisher
   hmc6343_publisher_parameters
 )
 
+generate_parameter_library(bmi160_publisher_parameters
+  src/bmi160_publisher_parameters.yaml
+)
+add_executable(bmi160_publisher src/bmi160_publisher.cpp)
+target_link_libraries(bmi160_publisher
+  linux_i2c_devices::linux_i2c_devices
+  linux_i2c_interface::linux_i2c_interface
+  rclcpp::rclcpp
+  ${sensor_msgs_TARGETS}
+  bmi160_publisher_parameters
+)
+
 install(TARGETS
-  screen_rosout_logger screen_from_str_topic pca9685_servo_control hmc6343_publisher
+  screen_rosout_logger screen_from_str_topic pca9685_servo_control hmc6343_publisher bmi160_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 

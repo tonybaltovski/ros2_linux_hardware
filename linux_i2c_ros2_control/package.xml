@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>linux_i2c_ros2_control</name>
+  <version>0.0.0</version>
+  <description>ros2_control hardware interfaces for I2C devices in linux_i2c_devices.</description>
+  <maintainer email="tony@baltovski.ca">Tony Baltovski</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>linux_i2c_devices</depend>
+  <depend>linux_i2c_interface</depend>
+
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <!-- Runtime / demo deps used by the launch file. -->
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>imu_sensor_broadcaster</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <hardware_interface plugin="${prefix}/bmi160_sensor_hardware_plugin.xml"/>
+  </export>
+</package>

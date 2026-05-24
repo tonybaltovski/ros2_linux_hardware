@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="bmi160_demo">
+
+  <link name="base_link"/>
+
+  <link name="bmi160_link">
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.005"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="base_link_to_bmi160" type="fixed">
+    <parent link="base_link"/>
+    <child link="bmi160_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ros2_control sensor block: a single BMI160 IMU. -->
+  <ros2_control name="bmi160_system" type="sensor">
+    <hardware>
+      <plugin>linux_i2c_ros2_control/Bmi160SensorHardware</plugin>
+      <param name="i2c_bus">1</param>
+      <!-- 0x69 (=105) for boards with SDO tied high; 0x68 otherwise. -->
+      <param name="device_id">0x69</param>
+      <param name="accel_range_g">2</param>
+      <param name="gyro_range_dps">2000</param>
+    </hardware>
+    <sensor name="bmi160">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+  </ros2_control>
+
+</robot>

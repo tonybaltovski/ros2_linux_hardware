@@ -1,0 +1,35 @@
+bmi160_publisher:
+  i2c_bus:
+    type: int
+    default_value: 1
+    description: "I2C bus number (e.g. 1 → /dev/i2c-1)."
+    validation:
+      bounds<>: [0, 255]
+  device_id:
+    type: int
+    default_value: 0x68
+    description: "7-bit I2C address. 0x68 (SDO low, default) or 0x69 (SDO high)."
+    validation:
+      bounds<>: [0, 127]
+  publish_rate:
+    type: double
+    default_value: 100.0
+    description: "Publish frequency in Hz. The BMI160 internal ODR defaults to 100 Hz on both accel and gyro after reset; pick a publish rate ≤ ODR to avoid duplicate samples."
+    validation:
+      bounds<>: [0.1, 1600.0]
+  accel_range_g:
+    type: int
+    default_value: 2
+    description: "Accelerometer full-scale range, g. One of {2, 4, 8, 16}."
+    validation:
+      one_of<>: [[2, 4, 8, 16]]
+  gyro_range_dps:
+    type: int
+    default_value: 2000
+    description: "Gyroscope full-scale range, dps. One of {125, 250, 500, 1000, 2000}."
+    validation:
+      one_of<>: [[125, 250, 500, 1000, 2000]]
+  frame_id:
+    type: string
+    default_value: "bmi160"
+    description: "frame_id stamped on published messages."

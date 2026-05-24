@@ -21,6 +21,7 @@ find_package(linux_i2c_interface REQUIRED)
 find_package(rclcpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
+  src/bmi160.cpp
   src/hmc6343.cpp
   src/lcm1602.cpp
   src/pca9685.cpp

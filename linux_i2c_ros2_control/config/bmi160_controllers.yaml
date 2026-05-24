@@ -1,0 +1,11 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 200  # Hz
+
+    imu_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+imu_broadcaster:
+  ros__parameters:
+    sensor_name: bmi160
+    frame_id: bmi160_link
