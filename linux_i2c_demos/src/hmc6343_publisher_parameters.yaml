@@ -1,0 +1,23 @@
+hmc6343_publisher:
+  i2c_bus:
+    type: int
+    default_value: 1
+    description: "I2C bus number (e.g. 1 → /dev/i2c-1)."
+    validation:
+      bounds<>: [0, 255]
+  device_id:
+    type: int
+    default_value: 0x19
+    description: "7-bit I2C address. Default 0x19 (HMC6343 factory)."
+    validation:
+      bounds<>: [0, 127]
+  publish_rate:
+    type: double
+    default_value: 10.0
+    description: "Publish frequency in Hz. The HMC6343 measurement rate is selectable in firmware at 1, 5, or 10 Hz (OPMODE2); 10 Hz is the chip maximum. Polling faster than the chip's internal rate yields duplicate samples."
+    validation:
+      bounds<>: [0.1, 10.0]
+  frame_id:
+    type: string
+    default_value: "hmc6343"
+    description: "frame_id stamped on published messages."

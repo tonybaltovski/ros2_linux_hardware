@@ -106,6 +106,10 @@ public:
     /// @brief Write a raw buffer as a single I2C transfer (no register prefix).
     int write_raw(const void * data, uint32_t count);
 
+    /// @brief Read bytes from the selected device with no preceding write
+    ///        (no register-pointer / command byte).
+    int read_raw(void * data, uint32_t count);
+
   private:
     friend class I2cInterface;
     Transaction(I2cInterface & iface, uint8_t device_id);
@@ -205,6 +209,9 @@ private:
 
   /// @brief Raw write (mutex must already be held).
   int write_raw_unlocked(const void * data, uint32_t count);
+
+  /// @brief Raw read with no register prefix (mutex must already be held).
+  int read_raw_unlocked(void * data, uint32_t count);
 
   /// @brief Registry for get_shared(): bus path -> weak handle.
   static std::mutex registry_mutex_;

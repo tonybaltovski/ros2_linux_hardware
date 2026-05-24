@@ -20,6 +20,7 @@ find_package(ament_cmake REQUIRED)
 find_package(generate_parameter_library REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(linux_i2c_devices REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
@@ -61,8 +62,21 @@ target_link_libraries(pca9685_servo_control
   pca9685_servo_control_parameters
 )
 
+generate_parameter_library(hmc6343_publisher_parameters
+  src/hmc6343_publisher_parameters.yaml
+)
+add_executable(hmc6343_publisher src/hmc6343_publisher.cpp)
+target_link_libraries(hmc6343_publisher
+  linux_i2c_devices::linux_i2c_devices
+  linux_i2c_interface::linux_i2c_interface
+  rclcpp::rclcpp
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  hmc6343_publisher_parameters
+)
+
 install(TARGETS
-  screen_rosout_logger screen_from_str_topic pca9685_servo_control
+  screen_rosout_logger screen_from_str_topic pca9685_servo_control hmc6343_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 

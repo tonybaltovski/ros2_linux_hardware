@@ -128,6 +128,16 @@ int I2cInterface::Transaction::write_raw(const void * data, uint32_t count)
   return iface_->write_raw_unlocked(data, count);
 }
 
+int I2cInterface::Transaction::read_raw(void * data, uint32_t count)
+{
+  if (!ok_)
+  {
+    errno = ENOTCONN;
+    return -1;
+  }
+  return iface_->read_raw_unlocked(data, count);
+}
+
 // ---------------------------------------------------------------------------
 // I2cInterface
 // ---------------------------------------------------------------------------
@@ -381,6 +391,40 @@ int I2cInterface::write_raw_unlocked(const void * data, uint32_t count)
   {
     RCLCPP_ERROR(
       rclcpp::get_logger(log_name_), "%s: Short write to device, expected %u, got %d", __func__,
+      count, ret);
+    errno = EIO;
+    return -1;
+  }
+  return 0;
+}
+
+int I2cInterface::read_raw_unlocked(void * data, uint32_t count)
+{
+  if (current_device_id_ < 0)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(log_name_), "%s: No slave selected", __func__);
+    errno = EINVAL;
+    return -1;
+  }
+
+  int ret = retry_eintr([&] { return ::read(i2c_fd_, data, count); });
+  if (ret < 0)
+  {
+    const int err = errno;
+    RCLCPP_ERROR(
+      rclcpp::get_logger(log_name_), "%s: Failed to read from device: %s", __func__,
+      strerror(err));
+    if (is_bus_fault(err))
+    {
+      close_bus_unlocked();
+    }
+    errno = err;
+    return -1;
+  }
+  if (static_cast<uint32_t>(ret) != count)
+  {
+    RCLCPP_ERROR(
+      rclcpp::get_logger(log_name_), "%s: Short read from device, expected %u, got %d", __func__,
       count, ret);
     errno = EIO;
     return -1;
