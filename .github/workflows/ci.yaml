@@ -9,7 +9,7 @@ on:
 jobs:
   ros_ci:
     name: ${{ matrix.ros_distro }} CI
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: ubuntu-latest
     container:
       image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu_codename }}-latest
     strategy:
@@ -18,13 +18,10 @@ jobs:
         include:
           - ros_distro: jazzy
             ubuntu_codename: noble
-            runs_on: ubuntu-24.04
           - ros_distro: lyrical
             ubuntu_codename: resolute
-            runs_on: ubuntu-26.04
           - ros_distro: rolling
             ubuntu_codename: resolute
-            runs_on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - uses: ros-tooling/action-ros-ci@v0.4
