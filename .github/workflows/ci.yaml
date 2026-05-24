@@ -7,17 +7,30 @@ on:
     - cron: "0 0 * * *" # every day at midnight
 
 jobs:
-  jazzy_ci:
-    name: Jazzy CI
-    runs-on: ubuntu-24.04
+  ros_ci:
+    name: ${{ matrix.ros_distro }} CI
+    runs-on: ${{ matrix.runs_on }}
     container:
-      image: rostooling/setup-ros-docker:ubuntu-noble-latest
+      image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu_codename }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: jazzy
+            ubuntu_codename: noble
+            runs_on: ubuntu-24.04
+          - ros_distro: lyrical
+            ubuntu_codename: resolute
+            runs_on: ubuntu-26.04
+          - ros_distro: rolling
+            ubuntu_codename: resolute
+            runs_on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - uses: ros-tooling/action-ros-ci@v0.4
         id: action_ros_ci_step
         with:
-          target-ros2-distro: jazzy
+          target-ros2-distro: ${{ matrix.ros_distro }}
           package-name: |
             linux_i2c_demos
             linux_i2c_devices
