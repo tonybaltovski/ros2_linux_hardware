@@ -2,9 +2,19 @@ name: ci
 
 on:
   push:
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
   schedule:
     - cron: "0 0 * * *" # every day at midnight
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ros_ci:
