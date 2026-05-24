@@ -23,6 +23,7 @@ find_package(rclcpp REQUIRED)
 add_library(${PROJECT_NAME} SHARED
   src/lcm1602.cpp
   src/pca9685.cpp
+  src/pca9685_servo.cpp
   src/ssd1306.cpp
 )
 

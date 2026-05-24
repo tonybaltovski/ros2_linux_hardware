@@ -112,37 +112,66 @@ public:
     std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id,
     uint8_t rows, uint8_t columns);
 
+  /// @copydoc Screen::clear
   int clear() override;
+  /// @copydoc Screen::set_cursor
   int set_cursor(uint8_t row, uint8_t column) override;
+  /// @copydoc Screen::print_msg
   int print_msg(const std::string & msg) override;
+  /// @copydoc Screen::print_char
   int print_char(char c) override;
+  /// @copydoc Screen::initialize
   int initialize() override;
+  /// @copydoc Screen::stop
   int stop() override;
+  /// @copydoc Screen::get_rows
   uint8_t get_rows() const override { return rows_; }
+  /// @copydoc Screen::get_columns
   uint8_t get_columns() const override { return columns_; }
 
-  /// @brief Return the cursor to the home position.
+  /// @brief Return the cursor to the home (0,0) position and reset shift.
   int home();
 
-  /// @brief Turn the display on.
+  /// @brief Enable the display output (does not affect the backlight).
   int turn_on();
 
-  /// @brief Turn the display off.
+  /// @brief Disable the display output (does not affect the backlight).
   int turn_off();
 
-  /// @brief Send a command byte, then wait @p delay_us microseconds.
+  /**
+   * @brief Send a single HD44780 command byte.
+   * @param value Command byte (e.g. LCM1602_CLEARDISPLAY).
+   * @param delay_us Microseconds to sleep after the command completes
+   *        (allows the controller's internal settling time).
+   * @return 0 on success, -1 on transfer failure.
+   */
   int command(uint8_t value, uint32_t delay_us = 0);
 
-  /// @brief Write a byte in command (LCM1602_CMD) or data (LCM1602_RS) mode.
+  /**
+   * @brief Write a byte to the LCD in either command or data mode.
+   * @param value Byte to write.
+   * @param mode LCM1602_CMD for instruction, LCM1602_RS for character data.
+   * @return 0 on success, -1 on transfer failure.
+   */
   int write(uint8_t value, uint8_t mode);
 
-  /// @brief Send the upper nibble of @p value via the PCF8574 expander.
+  /**
+   * @brief Send the upper nibble of @p value via the PCF8574 expander.
+   *
+   * Used during 4-bit-mode initialisation before the full @c write() path is
+   * available.  Callers normally use @c write() instead.
+   */
   int write_4bits(uint8_t value);
 
-  /// @brief Write a raw byte (OR'd with backlight state), then wait @p delay_us.
+  /**
+   * @brief Write a raw expander byte (OR'd with the current backlight bit).
+   * @param value Pre-formed PCF8574 byte (RS / RW / EN / data nibble).
+   * @param delay_us Microseconds to sleep after the write.
+   * @return 0 on success, -1 on transfer failure.
+   */
   int send(uint8_t value, uint32_t delay_us = 0);
 
-  /// @brief Pulse the enable pin to latch the current nibble on the bus.
+  /// @brief Pulse the LCD enable line to latch the current nibble (E high, E low).
   int pulse_enable(uint8_t value);
 
 private:

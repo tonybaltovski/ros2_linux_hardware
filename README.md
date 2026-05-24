@@ -93,7 +93,6 @@ cd ~/ros2_ws/src
 git clone https://github.com/tonybaltovski/ros2_linux_hardware.git
 
 # Install any missing rosdep dependencies
-sudo rosdep init  # only needed once
 rosdep update
 rosdep install --from-paths . --ignore-src -y
 
@@ -202,22 +201,23 @@ Parameters (set via `--ros-args -p`):
 | `device_id` | `0x40` | PCA9685 I2C address |
 | `pwm_frequency` | `50.0` | PWM frequency in Hz |
 
-Send servo duty-cycle commands (one value per channel, 0.0–1.0):
+Send servo throttle commands (one value per channel, normalised to [-1.0, +1.0]):
 
 ```bash
-# Centre a servo on channel 0 (1.5 ms pulse at 50 Hz ≈ 0.075 duty cycle)
+# Centre a servo on channel 0 (1.5 ms pulse at 50 Hz with the default 1000-2000 us range)
 ros2 topic pub /pca9685_servo_control/servo_commands \
-  std_msgs/msg/Float64MultiArray "{data: [0.075]}"
+  std_msgs/msg/Float64MultiArray "{data: [0.0]}"
 
 # Drive channels 0, 1, and 2 to different positions
 ros2 topic pub /pca9685_servo_control/servo_commands \
-  std_msgs/msg/Float64MultiArray "{data: [0.025, 0.075, 0.125]}"
+  std_msgs/msg/Float64MultiArray "{data: [-1.0, 0.0, 1.0]}"
 ```
 
-For standard hobby servos at 50 Hz:
-- **~0.025** (0.5 ms) → full left
-- **~0.075** (1.5 ms) → centre
-- **~0.125** (2.5 ms) → full right
+Values are clamped to [-1.0, +1.0] and mapped to the default 1.0–2.0 ms pulse-width
+range (standard hobby servo) at the configured PWM frequency:
+- **-1.0** (1.0 ms) → one extreme
+- **0.0** (1.5 ms) → centre / ESC stop
+- **+1.0** (2.0 ms) → other extreme
 
 ## Troubleshooting
 

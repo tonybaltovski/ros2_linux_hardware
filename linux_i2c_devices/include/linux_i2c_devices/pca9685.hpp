@@ -104,7 +104,7 @@ constexpr uint8_t PCA9685_NUM_CHANNELS = 16;         ///< Number of PWM channels
  *
  * Typical usage:
  * @code
- * auto i2c = std::make_shared<linux_i2c_interface::I2cInterface>(1);
+ * auto i2c = linux_i2c_interface::I2cInterface::get_shared(1);
  * linux_i2c_devices::Pca9685 pwm(i2c, 0x40);
  * pwm.initialize();
  * pwm.set_pwm_frequency(50.0);   // 50 Hz for servos
@@ -122,29 +122,60 @@ public:
    */
   Pca9685(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
 
-  /// @brief Initialise the PCA9685.
+  /**
+   * @brief Run the power-on sequence and program the default PWM frequency.
+   * @return 0 on success, -1 on transfer failure (errno set).
+   */
   int initialize();
 
-  /// @brief Set the PWM frequency for all channels (24-1526 Hz range).
+  /**
+   * @brief Set the PWM frequency for all 16 channels.
+   * @param freq_hz Target frequency in Hz; clamped to the 24..1526 Hz range
+   *        supported by the PCA9685's prescaler.
+   * @return 0 on success, -1 on transfer failure.
+   */
   int set_pwm_frequency(double freq_hz);
 
-  /// @brief Set raw ON/OFF tick counts for a single channel.
+  /**
+   * @brief Set raw ON/OFF tick counts for one channel.
+   * @param channel 0..15.
+   * @param on  Tick (0..4095) at which the output rises.
+   * @param off Tick (0..4095) at which the output falls.
+   * @return 0 on success, -1 on transfer or argument failure.
+   */
   int set_pwm(uint8_t channel, uint16_t on, uint16_t off);
 
-  /// @brief Set the duty cycle for a single channel (0.0 .. 1.0).
+  /**
+   * @brief Set the duty cycle of a channel as a fraction of the PWM period.
+   * @param channel 0..15.
+   * @param duty_cycle 0.0 (always off) .. 1.0 (always on); clamped.
+   * @return 0 on success, -1 on transfer or argument failure.
+   */
   int set_duty_cycle(uint8_t channel, double duty_cycle);
 
-  /// @brief Set raw ON/OFF tick counts for all 16 channels simultaneously.
+  /**
+   * @brief Set raw ON/OFF tick counts for all 16 channels in one I2C burst.
+   * @param on  Tick (0..4095) at which all outputs rise.
+   * @param off Tick (0..4095) at which all outputs fall.
+   * @return 0 on success, -1 on transfer failure.
+   */
   int set_all_pwm(uint16_t on, uint16_t off);
 
   /// @brief Put the device into sleep mode (oscillator off).
   int sleep();
 
-  /// @brief Wake the device from sleep mode.
+  /// @brief Wake the device from sleep mode and wait for the oscillator to settle.
   int wake_up();
 
-  /// @brief Turn off all channels and close the I2C bus connection.
+  /// @brief Drive all outputs to 0.
   void stop();
+
+  /// @brief Currently-programmed PWM frequency in Hz (last value set; default
+  /// PCA9685_DEFAULT_FREQ).
+  double frequency_hz() const { return pwm_frequency_; }
+
+  /// @brief Underlying I2C address of this PCA9685.
+  uint8_t device_id() const { return device_id_; }
 
 private:
   using Transaction = linux_i2c_interface::I2cInterface::Transaction;

@@ -110,7 +110,7 @@ constexpr uint8_t SSD1306_TEXT_ROWS = SSD1306_HEIGHT / SSD1306_FONT_HEIGHT;
  *
  * Typical usage:
  * @code
- * auto i2c = std::make_shared<linux_i2c_interface::I2cInterface>(1);
+ * auto i2c = linux_i2c_interface::I2cInterface::get_shared(1);
  * linux_i2c_devices::Ssd1306 oled(i2c, 0x3C);
  * oled.initialize();
  * oled.clear();
@@ -129,22 +129,48 @@ public:
    */
   Ssd1306(std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface, uint8_t device_id);
 
+  /// @copydoc Screen::initialize
   int initialize() override;
+  /// @copydoc Screen::clear
   int clear() override;
+  /// @copydoc Screen::set_cursor
   int set_cursor(uint8_t row, uint8_t column) override;
+  /// @copydoc Screen::print_char
   int print_char(char c) override;
+  /// @copydoc Screen::print_msg
   int print_msg(const std::string & msg) override;
+  /// @copydoc Screen::stop
   int stop() override;
+  /// @copydoc Screen::get_rows
   uint8_t get_rows() const override { return SSD1306_TEXT_ROWS; }
+  /// @copydoc Screen::get_columns
   uint8_t get_columns() const override { return SSD1306_TEXT_COLS; }
 
-  /// @brief Flush the in-memory framebuffer to the OLED.
+  /**
+   * @brief Flush the in-memory framebuffer to the OLED.
+   *
+   * Sets the GDDRAM window in a short transaction, then streams the 1024-byte
+   * buffer as ~16-byte chunks, each in its own transaction.  Other drivers on
+   * the same bus may interleave between chunks.
+   *
+   * @return 0 on success, -1 on transfer failure (errno set).
+   */
   int display();
 
-  /// @brief Set or clear a single pixel (@p x in 0..127, @p y in 0..63).
+  /**
+   * @brief Set or clear a single pixel in the framebuffer (not flushed until display()).
+   * @param x Column (0..127).  Out-of-range coordinates are ignored.
+   * @param y Row (0..63).      Out-of-range coordinates are ignored.
+   * @param on True to light the pixel, false to clear.
+   */
   void set_pixel(uint8_t x, uint8_t y, bool on = true);
 
-  /// @brief Draw a single 5x7 character at pixel (@p x, @p y) (top of cell).
+  /**
+   * @brief Draw a single 5x7 glyph into the framebuffer at pixel (@p x, @p y).
+   * @param x Left edge column (top of the cell).
+   * @param y Top edge row.
+   * @param c ASCII character in 0x20..0x7E; out-of-range chars render blank.
+   */
   void draw_char(uint8_t x, uint8_t y, char c);
 
 private:

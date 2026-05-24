@@ -51,7 +51,7 @@ public:
   /// @brief Print a string from the cursor, wrapping across rows.
   virtual int print_msg(const std::string & msg) = 0;
 
-  /// @brief Shut down the display and release the I2C bus.
+  /// @brief Put the display into a safe shutdown state.
   virtual int stop() = 0;
 
   /// @brief Number of text rows the display can show.
