@@ -23,7 +23,7 @@ jobs:
           - ros_distro: rolling
             ubuntu_codename: resolute
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ros-tooling/action-ros-ci@v0.4
         id: action_ros_ci_step
         with:
