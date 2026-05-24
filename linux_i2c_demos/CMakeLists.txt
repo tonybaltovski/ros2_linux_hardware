@@ -23,11 +23,6 @@ find_package(std_msgs REQUIRED)
 find_package(linux_i2c_devices REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
 
-include_directories(include)
-
-include_directories(${linux_i2c_devices_INCLUDE_DIRS})
-include_directories(${linux_i2c_interface_INCLUDE_DIRS})
-
 add_executable(screen_rosout_logger src/screen_rosout_logger.cpp)
 target_link_libraries(screen_rosout_logger
   linux_i2c_devices::linux_i2c_devices

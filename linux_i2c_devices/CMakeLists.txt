@@ -19,8 +19,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
 
-include_directories(include)
-
 add_library(${PROJECT_NAME} SHARED
   src/lcm1602.cpp
   src/pca9685.cpp

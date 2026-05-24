@@ -78,7 +78,11 @@ bool I2cInterface::is_connected() const { return is_connected_; }
 int8_t I2cInterface::set_device_id(const uint8_t device_id)
 {
   const std::lock_guard<std::mutex> lock(i2c_mutex_);
+  return set_device_id_unlocked(device_id);
+}
 
+int8_t I2cInterface::set_device_id_unlocked(const uint8_t device_id)
+{
   int ret = ioctl(i2c_fd_, I2C_SLAVE, device_id);
   if (ret < 0)
   {
@@ -126,18 +130,23 @@ int8_t I2cInterface::write_to_bus(const uint8_t address)
 
 int8_t I2cInterface::write_to_bus(const uint8_t device_id, const uint8_t address)
 {
-  int8_t ret = set_device_id(device_id);
+  const std::lock_guard<std::mutex> lock(i2c_mutex_);
+  int8_t ret = set_device_id_unlocked(device_id);
   if (ret < 0)
   {
     return ret;
   }
-  return write_to_bus(address, nullptr, 0);
+  return write_to_bus_unlocked(address, nullptr, 0);
 }
 
 int8_t I2cInterface::write_to_bus(const uint8_t address, void * data, uint32_t count)
 {
   const std::lock_guard<std::mutex> lock(i2c_mutex_);
+  return write_to_bus_unlocked(address, data, count);
+}
 
+int8_t I2cInterface::write_to_bus_unlocked(const uint8_t address, void * data, uint32_t count)
+{
   if (write(i2c_fd_, &address, 1) < 0)
   {
     std::cerr << __PRETTY_FUNCTION__ << ": Failed to write to device: " << strerror(errno)

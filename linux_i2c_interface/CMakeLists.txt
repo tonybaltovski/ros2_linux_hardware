@@ -18,8 +18,6 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 
-include_directories(include)
-
 add_library(${PROJECT_NAME} SHARED
   src/i2c_interface.cpp
 )
@@ -51,6 +49,5 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_include_directories(include)
 
 ament_package()

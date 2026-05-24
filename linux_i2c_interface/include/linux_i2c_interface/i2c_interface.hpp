@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -121,10 +122,10 @@ public:
   int8_t write_raw(const void * data, uint32_t count);
 
 private:
-  std::string i2c_bus_;       ///< Device path (e.g. "/dev/i2c-1").
-  int i2c_fd_{-1};            ///< File descriptor for the open bus.
-  std::mutex i2c_mutex_;      ///< Serialises all bus operations.
-  bool is_connected_{false};  ///< Whether the bus is currently open.
+  std::string i2c_bus_;             ///< Device path (e.g. "/dev/i2c-1").
+  int i2c_fd_{-1};                  ///< File descriptor for the open bus.
+  std::mutex i2c_mutex_;            ///< Serialises all bus operations.
+  std::atomic<bool> is_connected_{false};  ///< Whether the bus is currently open.
 
   /**
    * @brief Internal helper to close the bus without locking the mutex.
@@ -133,6 +134,20 @@ private:
    * Must only be called while i2c_mutex_ is already held.
    */
   int8_t close_bus_unlocked();
+
+  /**
+   * @brief Internal helper to select the active slave without locking.
+   *
+   * Must only be called while i2c_mutex_ is already held.
+   */
+  int8_t set_device_id_unlocked(uint8_t device_id);
+
+  /**
+   * @brief Internal helper to write address + payload without locking.
+   *
+   * Must only be called while i2c_mutex_ is already held.
+   */
+  int8_t write_to_bus_unlocked(uint8_t address, void * data, uint32_t count);
 };
 
 }  // namespace linux_i2c_interface
