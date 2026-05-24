@@ -26,7 +26,7 @@ jobs:
             ubuntu_codename: resolute
             runs_on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ros-tooling/action-ros-ci@v0.4
         id: action_ros_ci_step
         with:
