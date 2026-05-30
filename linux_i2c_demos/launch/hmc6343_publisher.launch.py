@@ -21,29 +21,29 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument("i2c_bus", default_value="1", description="I2C bus number."),
+            DeclareLaunchArgument('i2c_bus', default_value='1', description='I2C bus number.'),
             DeclareLaunchArgument(
-                "device_id",
-                default_value="25",
-                description="I2C address (default 0x19 = 25).",
+                'device_id',
+                default_value='25',
+                description='I2C address (default 0x19 = 25).',
             ),
             DeclareLaunchArgument(
-                "publish_rate", default_value="10.0", description="Publish frequency in Hz."
+                'publish_rate', default_value='10.0', description='Publish frequency in Hz.'
             ),
             DeclareLaunchArgument(
-                "frame_id", default_value="hmc6343", description="frame_id stamped on messages."
+                'frame_id', default_value='hmc6343', description='frame_id stamped on messages.'
             ),
             Node(
-                package="linux_i2c_demos",
-                executable="hmc6343_publisher",
-                name="hmc6343_publisher",
-                output="screen",
+                package='linux_i2c_demos',
+                executable='hmc6343_publisher',
+                name='hmc6343_publisher',
+                output='screen',
                 parameters=[
                     {
-                        "i2c_bus": LaunchConfiguration("i2c_bus"),
-                        "device_id": LaunchConfiguration("device_id"),
-                        "publish_rate": LaunchConfiguration("publish_rate"),
-                        "frame_id": LaunchConfiguration("frame_id"),
+                        'i2c_bus': LaunchConfiguration('i2c_bus'),
+                        'device_id': LaunchConfiguration('device_id'),
+                        'publish_rate': LaunchConfiguration('publish_rate'),
+                        'frame_id': LaunchConfiguration('frame_id'),
                     }
                 ],
             ),

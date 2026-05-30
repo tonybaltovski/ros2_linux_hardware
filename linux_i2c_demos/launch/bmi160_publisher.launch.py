@@ -21,39 +21,39 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription(
         [
-            DeclareLaunchArgument("i2c_bus", default_value="1", description="I2C bus number."),
+            DeclareLaunchArgument('i2c_bus', default_value='1', description='I2C bus number.'),
             DeclareLaunchArgument(
-                "device_id",
-                default_value="104",
-                description="I2C address (default 0x68 = 104; 0x69 = 105 if SDO=V_DDIO).",
+                'device_id',
+                default_value='104',
+                description='I2C address (default 0x68 = 104; 0x69 = 105 if SDO=V_DDIO).',
             ),
             DeclareLaunchArgument(
-                "publish_rate", default_value="100.0", description="Publish frequency in Hz."
+                'publish_rate', default_value='100.0', description='Publish frequency in Hz.'
             ),
             DeclareLaunchArgument(
-                "accel_range_g", default_value="2", description="Accel full-scale: 2/4/8/16 g."
+                'accel_range_g', default_value='2', description='Accel full-scale: 2/4/8/16 g.'
             ),
             DeclareLaunchArgument(
-                "gyro_range_dps",
-                default_value="2000",
-                description="Gyro full-scale: 125/250/500/1000/2000 dps.",
+                'gyro_range_dps',
+                default_value='2000',
+                description='Gyro full-scale: 125/250/500/1000/2000 dps.',
             ),
             DeclareLaunchArgument(
-                "frame_id", default_value="bmi160", description="frame_id stamped on messages."
+                'frame_id', default_value='bmi160', description='frame_id stamped on messages.'
             ),
             Node(
-                package="linux_i2c_demos",
-                executable="bmi160_publisher",
-                name="bmi160_publisher",
-                output="screen",
+                package='linux_i2c_demos',
+                executable='bmi160_publisher',
+                name='bmi160_publisher',
+                output='screen',
                 parameters=[
                     {
-                        "i2c_bus": LaunchConfiguration("i2c_bus"),
-                        "device_id": LaunchConfiguration("device_id"),
-                        "publish_rate": LaunchConfiguration("publish_rate"),
-                        "accel_range_g": LaunchConfiguration("accel_range_g"),
-                        "gyro_range_dps": LaunchConfiguration("gyro_range_dps"),
-                        "frame_id": LaunchConfiguration("frame_id"),
+                        'i2c_bus': LaunchConfiguration('i2c_bus'),
+                        'device_id': LaunchConfiguration('device_id'),
+                        'publish_rate': LaunchConfiguration('publish_rate'),
+                        'accel_range_g': LaunchConfiguration('accel_range_g'),
+                        'gyro_range_dps': LaunchConfiguration('gyro_range_dps'),
+                        'frame_id': LaunchConfiguration('frame_id'),
                     }
                 ],
             ),

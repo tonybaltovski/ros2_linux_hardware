@@ -19,31 +19,31 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    i2c_bus = LaunchConfiguration("i2c_bus")
-    device_id = LaunchConfiguration("device_id")
-    pwm_frequency = LaunchConfiguration("pwm_frequency")
+    i2c_bus = LaunchConfiguration('i2c_bus')
+    device_id = LaunchConfiguration('device_id')
+    pwm_frequency = LaunchConfiguration('pwm_frequency')
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument("i2c_bus", default_value="1", description="I2C bus number."),
+            DeclareLaunchArgument('i2c_bus', default_value='1', description='I2C bus number.'),
             DeclareLaunchArgument(
-                "device_id",
-                default_value="64",
-                description="7-bit I2C address of the PCA9685 (default 0x40 = 64).",
+                'device_id',
+                default_value='64',
+                description='7-bit I2C address of the PCA9685 (default 0x40 = 64).',
             ),
             DeclareLaunchArgument(
-                "pwm_frequency", default_value="50.0", description="PWM frequency in Hz."
+                'pwm_frequency', default_value='50.0', description='PWM frequency in Hz.'
             ),
             Node(
-                package="linux_i2c_demos",
-                executable="pca9685_servo_control",
-                name="pca9685_servo_control",
-                output="screen",
+                package='linux_i2c_demos',
+                executable='pca9685_servo_control',
+                name='pca9685_servo_control',
+                output='screen',
                 parameters=[
                     {
-                        "i2c_bus": i2c_bus,
-                        "device_id": device_id,
-                        "pwm_frequency": pwm_frequency,
+                        'i2c_bus': i2c_bus,
+                        'device_id': device_id,
+                        'pwm_frequency': pwm_frequency,
                     }
                 ],
             ),
