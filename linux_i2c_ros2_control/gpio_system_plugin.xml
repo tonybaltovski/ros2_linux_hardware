@@ -1,0 +1,12 @@
+<library path="linux_i2c_ros2_control">
+  <class
+    name="linux_i2c_ros2_control/GpioSystem"
+    type="linux_i2c_ros2_control::GpioSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ros2_control SystemInterface that exposes Linux GPIO character-device
+      lines (via linux_gpio_interface) as ros2_control GPIO command/state
+      interfaces.
+    </description>
+  </class>
+</library>

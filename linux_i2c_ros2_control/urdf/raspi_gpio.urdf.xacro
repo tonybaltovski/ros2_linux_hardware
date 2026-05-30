@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="raspi_gpio">
+
+  <!--
+    A minimal ros2_control robot description that exposes:
+      * an output GPIO "led"    on BCM 17, driven push-pull, initially low
+      * an input  GPIO "button" on BCM 27, with an internal pull-up
+
+    The chip and per-line wiring can be overridden via xacro args.
+  -->
+
+  <xacro:arg name="chip"         default="/dev/gpiochip0"/>
+  <xacro:arg name="led_line"     default="17"/>
+  <xacro:arg name="button_line"  default="27"/>
+
+  <link name="base_link"/>
+
+  <ros2_control name="RaspiGpio" type="system">
+    <hardware>
+      <plugin>linux_i2c_ros2_control/GpioSystem</plugin>
+      <param name="chip">$(arg chip)</param>
+    </hardware>
+
+    <gpio name="led">
+      <command_interface name="value"/>
+      <state_interface name="value"/>
+      <param name="line">$(arg led_line)</param>
+      <param name="direction">output</param>
+      <param name="initial_value">0</param>
+      <param name="drive">push_pull</param>
+    </gpio>
+
+    <gpio name="button">
+      <state_interface name="value"/>
+      <param name="line">$(arg button_line)</param>
+      <param name="direction">input</param>
+      <param name="bias">pull_up</param>
+    </gpio>
+  </ros2_control>
+
+</robot>

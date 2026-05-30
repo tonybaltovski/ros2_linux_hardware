@@ -71,8 +71,7 @@ public:
    *         @p actuation_range_deg is not positive.
    */
   Pca9685Servo(
-    Pca9685 & pca9685, uint8_t channel,
-    uint16_t min_pulse_us = SERVO_DEFAULT_MIN_PULSE_US,
+    Pca9685 & pca9685, uint8_t channel, uint16_t min_pulse_us = SERVO_DEFAULT_MIN_PULSE_US,
     uint16_t max_pulse_us = SERVO_DEFAULT_MAX_PULSE_US,
     double actuation_range_deg = SERVO_DEFAULT_ACTUATION_RANGE_DEG);
 

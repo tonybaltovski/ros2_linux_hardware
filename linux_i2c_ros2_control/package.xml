@@ -11,6 +11,7 @@
 
   <depend>linux_i2c_devices</depend>
   <depend>linux_i2c_interface</depend>
+  <depend>linux_gpio_interface</depend>
 
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
@@ -19,6 +20,7 @@
 
   <!-- Runtime / demo deps used by the launch file. -->
   <exec_depend>controller_manager</exec_depend>
+  <exec_depend>gpio_controllers</exec_depend>
   <exec_depend>imu_sensor_broadcaster</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>xacro</exec_depend>
@@ -29,5 +31,6 @@
   <export>
     <build_type>ament_cmake</build_type>
     <hardware_interface plugin="${prefix}/bmi160_sensor_hardware_plugin.xml"/>
+    <hardware_interface plugin="${prefix}/gpio_system_plugin.xml"/>
   </export>
 </package>

@@ -20,9 +20,11 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(linux_i2c_devices REQUIRED)
 find_package(linux_i2c_interface REQUIRED)
+find_package(linux_gpio_interface REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/bmi160_sensor_hardware.cpp
+  src/gpio_system.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -35,10 +37,14 @@ target_link_libraries(${PROJECT_NAME}
   rclcpp_lifecycle::rclcpp_lifecycle
   linux_i2c_devices::linux_i2c_devices
   linux_i2c_interface::linux_i2c_interface
+  linux_gpio_interface::linux_gpio_interface
 )
 
 pluginlib_export_plugin_description_file(
   hardware_interface bmi160_sensor_hardware_plugin.xml
+)
+pluginlib_export_plugin_description_file(
+  hardware_interface gpio_system_plugin.xml
 )
 
 install(
@@ -60,7 +66,7 @@ install(
 )
 
 install(
-  FILES bmi160_sensor_hardware_plugin.xml
+  FILES bmi160_sensor_hardware_plugin.xml gpio_system_plugin.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -85,6 +91,7 @@ ament_export_dependencies(
   rclcpp_lifecycle
   linux_i2c_devices
   linux_i2c_interface
+  linux_gpio_interface
 )
 
 ament_package()

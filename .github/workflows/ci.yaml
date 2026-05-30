@@ -28,6 +28,20 @@ jobs:
       - uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: jazzy
+      - name: Refresh ROS 2 apt source (handle key rotations)
+        # The ros2-apt-source package installs the keyring and keeps it
+        # up to date so future OSRF key rotations don't break apt-get.
+        run: |
+          set -euo pipefail
+          codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+          version=$(curl -sSL https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
+            | grep -F '"tag_name"' | awk -F'"' '{print $4}')
+          tmp=$(mktemp --suffix=.deb)
+          curl -sSL -o "$tmp" \
+            "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${version}/ros2-apt-source_${version}.${codename}_all.deb"
+          sudo apt-get install -y "$tmp"
+          rm -f "$tmp"
+          sudo apt-get update
       - name: Install ament lint tools
         run: |
           sudo apt-get install -y --no-install-recommends \
