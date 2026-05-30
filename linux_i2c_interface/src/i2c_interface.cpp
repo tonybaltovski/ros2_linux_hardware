@@ -412,8 +412,7 @@ int I2cInterface::read_raw_unlocked(void * data, uint32_t count)
   {
     const int err = errno;
     RCLCPP_ERROR(
-      rclcpp::get_logger(log_name_), "%s: Failed to read from device: %s", __func__,
-      strerror(err));
+      rclcpp::get_logger(log_name_), "%s: Failed to read from device: %s", __func__, strerror(err));
     if (is_bus_fault(err))
     {
       close_bus_unlocked();

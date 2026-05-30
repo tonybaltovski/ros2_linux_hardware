@@ -45,8 +45,8 @@ public:
 
     frame_id_ = params.frame_id;
 
-    auto i2c_interface = linux_i2c_interface::I2cInterface::get_shared(
-      static_cast<uint8_t>(params.i2c_bus));
+    auto i2c_interface =
+      linux_i2c_interface::I2cInterface::get_shared(static_cast<uint8_t>(params.i2c_bus));
 
     sensor_ = std::make_unique<linux_i2c_devices::Hmc6343>(
       i2c_interface, static_cast<uint8_t>(params.device_id));
@@ -60,8 +60,7 @@ public:
       RCLCPP_ERROR(this->get_logger(), "Failed to initialize HMC6343");
     }
 
-    pub_field_ =
-      this->create_publisher<sensor_msgs::msg::MagneticField>("~/magnetic_field", 10);
+    pub_field_ = this->create_publisher<sensor_msgs::msg::MagneticField>("~/magnetic_field", 10);
     pub_heading_ = this->create_publisher<std_msgs::msg::Float64>("~/heading", 10);
 
     const auto period = std::chrono::duration<double>(1.0 / params.publish_rate);
@@ -118,8 +117,7 @@ private:
     }
     else
     {
-      RCLCPP_WARN_THROTTLE(
-        this->get_logger(), *this->get_clock(), 2000, "Failed to read heading");
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Failed to read heading");
     }
   }
 

@@ -76,7 +76,8 @@ private:
   int i2c_bus_{1};
   uint8_t device_id_{linux_i2c_devices::BMI160_DEFAULT_ADDRESS};
   linux_i2c_devices::Bmi160AccelRange accel_range_{linux_i2c_devices::Bmi160AccelRange::RANGE_2G};
-  linux_i2c_devices::Bmi160GyroRange gyro_range_{linux_i2c_devices::Bmi160GyroRange::RANGE_2000_DPS};
+  linux_i2c_devices::Bmi160GyroRange gyro_range_{
+    linux_i2c_devices::Bmi160GyroRange::RANGE_2000_DPS};
   std::string sensor_name_;
 
   // Runtime.

@@ -80,8 +80,8 @@ public:
 
     frame_id_ = params.frame_id;
 
-    auto i2c_interface = linux_i2c_interface::I2cInterface::get_shared(
-      static_cast<uint8_t>(params.i2c_bus));
+    auto i2c_interface =
+      linux_i2c_interface::I2cInterface::get_shared(static_cast<uint8_t>(params.i2c_bus));
 
     sensor_ = std::make_unique<linux_i2c_devices::Bmi160>(
       i2c_interface, static_cast<uint8_t>(params.device_id),
@@ -152,8 +152,7 @@ private:
     }
     else
     {
-      RCLCPP_WARN_THROTTLE(
-        this->get_logger(), *this->get_clock(), 2000, "Failed to read IMU");
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Failed to read IMU");
     }
 
     double temperature_c = 0.0;

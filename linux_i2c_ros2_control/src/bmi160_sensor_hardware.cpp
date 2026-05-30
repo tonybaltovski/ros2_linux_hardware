@@ -77,8 +77,8 @@ linux_i2c_devices::Bmi160GyroRange gyro_range_from_dps(int range_dps)
 }
 
 int get_int_param(
-  const std::unordered_map<std::string, std::string> & params,
-  const std::string & key, int default_value)
+  const std::unordered_map<std::string, std::string> & params, const std::string & key,
+  int default_value)
 {
   auto it = params.find(key);
   if (it == params.end())
@@ -93,8 +93,9 @@ int get_int_param(
 hardware_interface::CallbackReturn Bmi160SensorHardware::on_init(
   const hardware_interface::HardwareInfo & info)
 {
-  if (hardware_interface::SensorInterface::on_init(info) !=
-      hardware_interface::CallbackReturn::SUCCESS)
+  if (
+    hardware_interface::SensorInterface::on_init(info) !=
+    hardware_interface::CallbackReturn::SUCCESS)
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -102,8 +103,7 @@ hardware_interface::CallbackReturn Bmi160SensorHardware::on_init(
   if (info_.sensors.size() != 1)
   {
     RCLCPP_ERROR(
-      get_logger(),
-      "Bmi160SensorHardware expects exactly one <sensor> in the URDF (got %zu).",
+      get_logger(), "Bmi160SensorHardware expects exactly one <sensor> in the URDF (got %zu).",
       info_.sensors.size());
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -121,8 +121,7 @@ hardware_interface::CallbackReturn Bmi160SensorHardware::on_init(
       return hardware_interface::CallbackReturn::ERROR;
     }
     device_id_ = static_cast<uint8_t>(dev);
-    accel_range_ =
-      accel_range_from_g(get_int_param(info_.hardware_parameters, "accel_range_g", 2));
+    accel_range_ = accel_range_from_g(get_int_param(info_.hardware_parameters, "accel_range_g", 2));
     gyro_range_ =
       gyro_range_from_dps(get_int_param(info_.hardware_parameters, "gyro_range_dps", 2000));
   }
@@ -140,8 +139,7 @@ hardware_interface::CallbackReturn Bmi160SensorHardware::on_init(
   state_[kOrientationW] = 1.0;
 
   RCLCPP_INFO(
-    get_logger(),
-    "Bmi160SensorHardware configured: sensor='%s' bus=%d addr=0x%02X",
+    get_logger(), "Bmi160SensorHardware configured: sensor='%s' bus=%d addr=0x%02X",
     sensor_name_.c_str(), i2c_bus_, device_id_);
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -200,16 +198,13 @@ hardware_interface::CallbackReturn Bmi160SensorHardware::on_cleanup(
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::StateInterface>
-Bmi160SensorHardware::export_state_interfaces()
+std::vector<hardware_interface::StateInterface> Bmi160SensorHardware::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> ifaces;
   ifaces.reserve(10);
 
   const auto add = [&](const std::string & iface_name, std::size_t idx)
-    {
-      ifaces.emplace_back(sensor_name_, iface_name, &state_[idx]);
-    };
+  { ifaces.emplace_back(sensor_name_, iface_name, &state_[idx]); };
 
   add("orientation.x", kOrientationX);
   add("orientation.y", kOrientationY);
@@ -261,5 +256,4 @@ hardware_interface::return_type Bmi160SensorHardware::read(
 }  // namespace linux_i2c_ros2_control
 
 PLUGINLIB_EXPORT_CLASS(
-  linux_i2c_ros2_control::Bmi160SensorHardware,
-  hardware_interface::SensorInterface)
+  linux_i2c_ros2_control::Bmi160SensorHardware, hardware_interface::SensorInterface)

@@ -5,6 +5,12 @@
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, RegisterEventHandler
@@ -16,61 +22,74 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     chip_arg = DeclareLaunchArgument(
-        'chip', default_value='/dev/gpiochip0',
-        description='Path to the GPIO chip character device.')
+        "chip",
+        default_value="/dev/gpiochip0",
+        description="Path to the GPIO chip character device.",
+    )
     led_line_arg = DeclareLaunchArgument(
-        'led_line', default_value='17',
-        description='Line offset on the chip for the LED (BCM numbering on a Pi).')
+        "led_line",
+        default_value="17",
+        description="Line offset on the chip for the LED (BCM numbering on a Pi).",
+    )
     button_line_arg = DeclareLaunchArgument(
-        'button_line', default_value='27',
-        description='Line offset on the chip for the button (BCM numbering on a Pi).')
+        "button_line",
+        default_value="27",
+        description="Line offset on the chip for the button (BCM numbering on a Pi).",
+    )
 
-    pkg = FindPackageShare('linux_i2c_ros2_control')
+    pkg = FindPackageShare("linux_i2c_ros2_control")
 
     robot_description = {
-        'robot_description': Command([
-            'xacro ',
-            PathJoinSubstitution([pkg, 'urdf', 'raspi_gpio.urdf.xacro']),
-            ' chip:=', LaunchConfiguration('chip'),
-            ' led_line:=', LaunchConfiguration('led_line'),
-            ' button_line:=', LaunchConfiguration('button_line'),
-        ]),
+        "robot_description": Command(
+            [
+                "xacro ",
+                PathJoinSubstitution([pkg, "urdf", "raspi_gpio.urdf.xacro"]),
+                " chip:=",
+                LaunchConfiguration("chip"),
+                " led_line:=",
+                LaunchConfiguration("led_line"),
+                " button_line:=",
+                LaunchConfiguration("button_line"),
+            ]
+        ),
     }
 
-    controllers_yaml = PathJoinSubstitution([pkg, 'config', 'gpio_controllers.yaml'])
+    controllers_yaml = PathJoinSubstitution([pkg, "config", "gpio_controllers.yaml"])
 
     control_node = Node(
-        package='controller_manager',
-        executable='ros2_control_node',
+        package="controller_manager",
+        executable="ros2_control_node",
         parameters=[robot_description, controllers_yaml],
-        output='screen',
+        output="screen",
     )
 
     robot_state_pub = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
         parameters=[robot_description],
-        output='screen',
+        output="screen",
     )
 
     spawn_gpio = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['gpio_command_controller'],
-        output='screen',
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gpio_command_controller"],
+        output="screen",
     )
 
-    return LaunchDescription([
-        chip_arg,
-        led_line_arg,
-        button_line_arg,
-        control_node,
-        robot_state_pub,
-        RegisterEventHandler(
-            event_handler=OnProcessExit(
-                target_action=control_node,
-                on_exit=[],
+    return LaunchDescription(
+        [
+            chip_arg,
+            led_line_arg,
+            button_line_arg,
+            control_node,
+            robot_state_pub,
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=control_node,
+                    on_exit=[],
+                ),
             ),
-        ),
-        spawn_gpio,
-    ])
+            spawn_gpio,
+        ]
+    )

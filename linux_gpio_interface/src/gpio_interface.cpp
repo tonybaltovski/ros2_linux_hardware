@@ -180,10 +180,7 @@ int GpioInterface::Line::get_values_mask(uint64_t * values)
   return 0;
 }
 
-int GpioInterface::Line::set_value(bool value)
-{
-  return set_values_mask(value ? 1ULL : 0ULL);
-}
+int GpioInterface::Line::set_value(bool value) { return set_values_mask(value ? 1ULL : 0ULL); }
 
 int GpioInterface::Line::get_value()
 {
@@ -362,8 +359,7 @@ GpioInterface::Line GpioInterface::request_lines(
     // Attach initial output values so we don't glitch when the line switches
     // to output mode.
     req.config.num_attrs = 1;
-    req.config.attrs[0].mask =
-      (num_offsets >= 64) ? ~0ULL : ((1ULL << num_offsets) - 1ULL);
+    req.config.attrs[0].mask = (num_offsets >= 64) ? ~0ULL : ((1ULL << num_offsets) - 1ULL);
     req.config.attrs[0].attr.id = GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES;
     req.config.attrs[0].attr.values = initial_values_mask;
   }
@@ -380,8 +376,7 @@ GpioInterface::Line GpioInterface::request_lines(
   }
   if (req.fd < 0)
   {
-    RCLCPP_ERROR(
-      rclcpp::get_logger(log_name_), "%s: Kernel returned invalid line fd", __func__);
+    RCLCPP_ERROR(rclcpp::get_logger(log_name_), "%s: Kernel returned invalid line fd", __func__);
     errno = EBADF;
     return Line();
   }

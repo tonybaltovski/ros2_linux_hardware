@@ -42,7 +42,8 @@ constexpr uint8_t BMI160_CHIP_ID_VALUE = 0xD1;
 constexpr uint8_t BMI160_REG_CHIP_ID = 0x00;
 constexpr uint8_t BMI160_REG_ERR = 0x02;
 constexpr uint8_t BMI160_REG_PMU_STATUS = 0x03;
-constexpr uint8_t BMI160_REG_DATA_GYRO_X_LSB = 0x0C;  ///< 12 bytes contiguous: gyro X/Y/Z, accel X/Y/Z (little-endian int16).
+constexpr uint8_t BMI160_REG_DATA_GYRO_X_LSB =
+  0x0C;  ///< 12 bytes contiguous: gyro X/Y/Z, accel X/Y/Z (little-endian int16).
 constexpr uint8_t BMI160_REG_TEMPERATURE_LSB = 0x20;  ///< 2 bytes (little-endian int16).
 constexpr uint8_t BMI160_REG_ACC_CONF = 0x40;
 constexpr uint8_t BMI160_REG_ACC_RANGE = 0x41;
@@ -73,7 +74,7 @@ constexpr uint32_t BMI160_GYR_WAKEUP_DELAY_US = 80000;  ///< 80 ms typical.
  */
 enum class Bmi160AccelRange : uint8_t
 {
-  RANGE_2G = 0x03,   ///< ±2 g  (default; highest resolution).
+  RANGE_2G = 0x03,  ///< ±2 g  (default; highest resolution).
   RANGE_4G = 0x05,
   RANGE_8G = 0x08,
   RANGE_16G = 0x0C,  ///< ±16 g (lowest resolution).
@@ -89,7 +90,7 @@ enum class Bmi160GyroRange : uint8_t
   RANGE_1000_DPS = 0x01,
   RANGE_500_DPS = 0x02,
   RANGE_250_DPS = 0x03,
-  RANGE_125_DPS = 0x04,   ///< ±125 dps (highest resolution).
+  RANGE_125_DPS = 0x04,  ///< ±125 dps (highest resolution).
 };
 
 /**
@@ -138,16 +139,14 @@ public:
    *        Cheaper than calling read_accel_g + read_gyro_dps separately.
    */
   int read_imu(
-    double & ax_g, double & ay_g, double & az_g,
-    double & gx_dps, double & gy_dps, double & gz_dps);
+    double & ax_g, double & ay_g, double & az_g, double & gx_dps, double & gy_dps, double & gz_dps);
 
   /**
    * @brief Read raw 16-bit accel + gyro counts in the chip's native units.
    *        Useful if you want to apply your own calibration / scale.
    */
   int read_imu_raw(
-    int16_t & ax, int16_t & ay, int16_t & az,
-    int16_t & gx, int16_t & gy, int16_t & gz);
+    int16_t & ax, int16_t & ay, int16_t & az, int16_t & gx, int16_t & gy, int16_t & gz);
 
 private:
   std::shared_ptr<linux_i2c_interface::I2cInterface> i2c_interface_;

@@ -75,7 +75,9 @@ std::string param_or(
 hardware_interface::CallbackReturn GpioSystem::on_init(
   const hardware_interface::HardwareInfo & info)
 {
-  if (hardware_interface::SystemInterface::on_init(info) != hardware_interface::CallbackReturn::SUCCESS)
+  if (
+    hardware_interface::SystemInterface::on_init(info) !=
+    hardware_interface::CallbackReturn::SUCCESS)
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -161,7 +163,8 @@ hardware_interface::CallbackReturn GpioSystem::on_configure(const rclcpp_lifecyc
   }
   catch (const std::exception & e)
   {
-    RCLCPP_ERROR(rclcpp::get_logger(kLogger), "Failed to open %s: %s", chip_path_.c_str(), e.what());
+    RCLCPP_ERROR(
+      rclcpp::get_logger(kLogger), "Failed to open %s: %s", chip_path_.c_str(), e.what());
     return hardware_interface::CallbackReturn::ERROR;
   }
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -177,8 +180,7 @@ hardware_interface::CallbackReturn GpioSystem::on_activate(const rclcpp_lifecycl
   {
     if (entry.direction == Direction::Output)
     {
-      entry.line_handle =
-        chip_->request_output(entry.line, entry.initial_value, entry.drive);
+      entry.line_handle = chip_->request_output(entry.line, entry.initial_value, entry.drive);
     }
     else
     {
@@ -241,8 +243,7 @@ std::vector<hardware_interface::CommandInterface> GpioSystem::export_command_int
   return ifaces;
 }
 
-hardware_interface::return_type GpioSystem::read(
-  const rclcpp::Time &, const rclcpp::Duration &)
+hardware_interface::return_type GpioSystem::read(const rclcpp::Time &, const rclcpp::Duration &)
 {
   for (auto & entry : entries_)
   {
@@ -264,8 +265,7 @@ hardware_interface::return_type GpioSystem::read(
   return hardware_interface::return_type::OK;
 }
 
-hardware_interface::return_type GpioSystem::write(
-  const rclcpp::Time &, const rclcpp::Duration &)
+hardware_interface::return_type GpioSystem::write(const rclcpp::Time &, const rclcpp::Duration &)
 {
   for (auto & entry : entries_)
   {

@@ -69,7 +69,8 @@ int Hmc6343::post_and_read(uint8_t cmd, uint8_t * buffer, uint32_t count, uint32
     auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
     if (!i2c_transaction.ok())
     {
-      RCLCPP_ERROR(logger(log_name_), "%s: Failed to reserve bus for command 0x%02x", __func__, cmd);
+      RCLCPP_ERROR(
+        logger(log_name_), "%s: Failed to reserve bus for command 0x%02x", __func__, cmd);
       return -1;
     }
     if (i2c_transaction.write_cmd(cmd) < 0)
