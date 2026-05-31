@@ -1,0 +1,19 @@
+# Allow members of the "iio" group read/write access to IIO character devices
+# and to the sysfs attributes the publisher writes (sampling_frequency, buffer
+# enable, trigger).
+#
+# Install with:
+#   sudo cp 99-iio.rules /etc/udev/rules.d/
+#   sudo groupadd -f iio && sudo usermod -aG iio $USER
+#   sudo udevadm control --reload && sudo udevadm trigger
+#   # log out / back in to pick up the new group
+
+KERNEL=="iio:device[0-9]*", GROUP="iio", MODE="0660"
+
+# Sysfs writables aren't covered by the char-device rule above; chmod the
+# common attributes we write on driver bind.
+SUBSYSTEM=="iio", ACTION=="add", RUN+="/bin/sh -c '\
+    for f in in_accel_sampling_frequency in_anglvel_sampling_frequency \
+             buffer/enable buffer/length trigger/current_trigger; do \
+        [ -e /sys/%p/$f ] && chgrp iio /sys/%p/$f && chmod g+w /sys/%p/$f; \
+    done'"

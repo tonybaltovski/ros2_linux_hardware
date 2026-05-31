@@ -1,0 +1,50 @@
+/*
+ * Device-tree overlay for a BMI160 IMU on the Raspberry Pi I2C1 bus, with
+ * INT1 wired to GPIO23 for hardware data-ready triggering through the kernel
+ * IIO subsystem.
+ *
+ * Build:
+ *   dtc -@ -I dts -O dtb -o bmi160.dtbo bmi160-overlay.dts
+ *
+ * Install:
+ *   sudo cp bmi160.dtbo /boot/firmware/overlays/
+ *   echo 'dtoverlay=bmi160' | sudo tee -a /boot/firmware/config.txt
+ *   sudo reboot
+ *
+ * After reboot the kernel binds bmi160_i2c at 0x68 and exposes the device as
+ *   /sys/bus/iio/devices/iio:device0  (name=bmi160)
+ *   /dev/iio:device0
+ *
+ * Change "interrupts = <23 1>" to match your wiring.  "1" = rising edge,
+ * matching the BMI160's default active-high push-pull interrupt output.  If
+ * you don't have INT1 wired, omit the interrupts/interrupt-parent/
+ * interrupt-names properties: the driver still works in polled (sysfs) mode,
+ * just without a hardware trigger.
+ *
+ * Address 0x68 is the default with SDO tied to GND.  Change to 0x69 if SDO
+ * is tied to VDDIO.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835";
+
+    fragment@0 {
+        target = <&i2c1>;
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            status = "okay";
+
+            bmi160@68 {
+                compatible = "bosch,bmi160";
+                reg = <0x68>;
+                interrupt-parent = <&gpio>;
+                interrupts = <23 1>;   /* GPIO23, rising-edge */
+                interrupt-names = "INT1";
+            };
+        };
+    };
+};

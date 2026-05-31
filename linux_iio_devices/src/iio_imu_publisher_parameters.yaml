@@ -1,0 +1,33 @@
+iio_imu_publisher:
+  iio_name:
+    type: string
+    default_value: "bmi160"
+    description: "IIO device name (contents of /sys/bus/iio/devices/iio:deviceN/name).  Used to locate the device regardless of probe order.  Examples: 'bmi160', 'bmi270', 'mpu6050', 'lsm6dsm'."
+  device_path:
+    type: string
+    default_value: ""
+    description: "Optional explicit /sys/bus/iio/devices/iio:deviceN path.  When non-empty, overrides iio_name lookup.  Useful when multiple IMUs of the same model are present."
+  frame_id:
+    type: string
+    default_value: "imu_link"
+    description: "frame_id stamped on published messages."
+  use_buffered_reads:
+    type: bool
+    default_value: false
+    description: "When true, open /dev/iio:deviceN and read hardware-triggered scan records via poll().  Requires the device to have a configured trigger (e.g. INT1 hooked up in the device tree).  When false, do polled sysfs reads on a ROS timer at publish_rate."
+  publish_rate:
+    type: double
+    default_value: 100.0
+    description: "Polled sysfs read rate, Hz.  Ignored when use_buffered_reads is true (the trigger sets the rate)."
+    validation:
+      bounds<>: [0.1, 1600.0]
+  sampling_frequency_hz:
+    type: double
+    default_value: 0.0
+    description: "If > 0, write this value to the IIO accel/gyro sampling_frequency on startup.  Leave at 0 to keep whatever the kernel/DT configured.  The chip's allowed frequencies are listed in *_sampling_frequency_available."
+    validation:
+      bounds<>: [0.0, 3200.0]
+  publish_temperature:
+    type: bool
+    default_value: true
+    description: "Publish ~/temperature in addition to ~/imu when in_temp_* attributes are present.  Silently disabled if the chip exposes no temperature channel."
