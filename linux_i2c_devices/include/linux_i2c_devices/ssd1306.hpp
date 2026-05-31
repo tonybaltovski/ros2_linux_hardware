@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "linux_i2c_devices/screen.hpp"
@@ -195,6 +196,10 @@ private:
   uint8_t cursor_row_{0};
   uint8_t cursor_col_{0};
   bool initialized_{false};
+  // Serialises public entry points so concurrent callers cannot corrupt the
+  // framebuffer or interleave a partially-written GDDRAM window.  Recursive
+  // because public methods chain (e.g. print_msg -> print_char -> draw_char).
+  mutable std::recursive_mutex device_mutex_;
 };
 
 }  // namespace linux_i2c_devices

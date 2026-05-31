@@ -104,6 +104,7 @@ Bmi160::Bmi160(
 
 int Bmi160::initialize()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (initialized_)
   {
     return 0;
@@ -239,6 +240,7 @@ int Bmi160::initialize()
 
 int Bmi160::stop()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
   if (!i2c_transaction.ok())
   {
@@ -264,6 +266,7 @@ int Bmi160::stop()
 int Bmi160::read_imu_raw(
   int16_t & ax, int16_t & ay, int16_t & az, int16_t & gx, int16_t & gy, int16_t & gz)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[12];  // gyro X/Y/Z, accel X/Y/Z; little-endian int16.
   {
     auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
@@ -290,6 +293,7 @@ int Bmi160::read_imu_raw(
 int Bmi160::read_imu(
   double & ax_g, double & ay_g, double & az_g, double & gx_dps, double & gy_dps, double & gz_dps)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   int16_t ax = 0;
   int16_t ay = 0;
   int16_t az = 0;
@@ -311,6 +315,7 @@ int Bmi160::read_imu(
 
 int Bmi160::read_accel_g(double & x_g, double & y_g, double & z_g)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   double gx_dps = 0.0;
   double gy_dps = 0.0;
   double gz_dps = 0.0;
@@ -319,6 +324,7 @@ int Bmi160::read_accel_g(double & x_g, double & y_g, double & z_g)
 
 int Bmi160::read_gyro_dps(double & x_dps, double & y_dps, double & z_dps)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   double ax_g = 0.0;
   double ay_g = 0.0;
   double az_g = 0.0;
@@ -327,6 +333,7 @@ int Bmi160::read_gyro_dps(double & x_dps, double & y_dps, double & z_dps)
 
 int Bmi160::read_temperature_c(double & temperature_c)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[2];
   {
     auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);

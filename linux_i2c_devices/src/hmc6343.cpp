@@ -100,6 +100,7 @@ int Hmc6343::post_and_read(uint8_t cmd, uint8_t * buffer, uint32_t count, uint32
 
 int Hmc6343::read_eeprom(uint8_t address, uint8_t & value)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   {
     auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
     if (!i2c_transaction.ok())
@@ -134,6 +135,7 @@ int Hmc6343::read_eeprom(uint8_t address, uint8_t & value)
 
 int Hmc6343::initialize()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (initialized_)
   {
     return 0;
@@ -164,6 +166,7 @@ int Hmc6343::initialize()
 
 int Hmc6343::stop()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
   if (!i2c_transaction.ok())
   {
@@ -181,6 +184,7 @@ int Hmc6343::stop()
 
 int Hmc6343::read_field_raw(int16_t & x, int16_t & y, int16_t & z)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[6];
   if (post_and_read(HMC6343_CMD_POST_MAG, buf, sizeof(buf), HMC6343_POST_DELAY_US) < 0)
   {
@@ -194,6 +198,7 @@ int Hmc6343::read_field_raw(int16_t & x, int16_t & y, int16_t & z)
 
 int Hmc6343::read_field_ut(double & x_ut, double & y_ut, double & z_ut)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   int16_t x = 0;
   int16_t y = 0;
   int16_t z = 0;
@@ -209,6 +214,7 @@ int Hmc6343::read_field_ut(double & x_ut, double & y_ut, double & z_ut)
 
 int Hmc6343::read_heading_deg(double & heading_deg)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[6];
   if (post_and_read(HMC6343_CMD_POST_HEADING, buf, sizeof(buf), HMC6343_POST_DELAY_US) < 0)
   {
@@ -221,6 +227,7 @@ int Hmc6343::read_heading_deg(double & heading_deg)
 
 int Hmc6343::read_tilt_deg(double & pitch_deg, double & roll_deg)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[6];
   if (post_and_read(HMC6343_CMD_POST_TILT, buf, sizeof(buf), HMC6343_POST_DELAY_US) < 0)
   {
@@ -233,6 +240,7 @@ int Hmc6343::read_tilt_deg(double & pitch_deg, double & roll_deg)
 
 int Hmc6343::read_accel_g(double & x_g, double & y_g, double & z_g)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buf[6];
   if (post_and_read(HMC6343_CMD_POST_ACCEL, buf, sizeof(buf), HMC6343_POST_DELAY_US) < 0)
   {

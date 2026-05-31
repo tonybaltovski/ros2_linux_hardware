@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "linux_i2c_devices/magnetometer.hpp"
@@ -146,6 +147,10 @@ private:
   uint8_t device_id_;
   std::string log_name_;
   bool initialized_;
+  // Serialises the device's post-then-read protocol: a command write and the
+  // subsequent read (with their sleep) must not interleave with other
+  // commands.  Recursive in case future helpers chain public entry points.
+  mutable std::recursive_mutex device_mutex_;
 };
 
 }  // namespace linux_i2c_devices

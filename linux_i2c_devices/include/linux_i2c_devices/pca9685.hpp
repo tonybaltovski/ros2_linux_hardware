@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "linux_i2c_interface/i2c_interface.hpp"
@@ -188,6 +189,11 @@ private:
   std::string log_name_;
   double pwm_frequency_{PCA9685_DEFAULT_FREQ};
   bool initialized_{false};
+  // Serialises public entry points so concurrent callers cannot interleave
+  // multi-register writes (set_pwm) or the read-modify-write in sleep()/
+  // wake_up().  Recursive because stop() and set_duty_cycle() chain through
+  // other public methods.
+  mutable std::recursive_mutex device_mutex_;
 };
 
 }  // namespace linux_i2c_devices

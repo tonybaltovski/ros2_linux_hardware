@@ -62,6 +62,7 @@ Lcm1602::Lcm1602(
 
 int Lcm1602::send(uint8_t value, uint32_t delay_us)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t buffer = value | backlight_;
   if (i2c_interface_->write_to_bus(device_id_, buffer) < 0)
   {
@@ -74,6 +75,7 @@ int Lcm1602::send(uint8_t value, uint32_t delay_us)
 
 int Lcm1602::pulse_enable(uint8_t value)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (send(value | LCM1602_EN, 1) < 0)
   {
     RCLCPP_ERROR(logger(log_name_), "%s: Failed to send enable pulse", __func__);
@@ -84,6 +86,7 @@ int Lcm1602::pulse_enable(uint8_t value)
 
 int Lcm1602::write_4bits(uint8_t value)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (send(value) < 0)
   {
     RCLCPP_ERROR(logger(log_name_), "%s: Failed to send nibble", __func__);
@@ -94,6 +97,7 @@ int Lcm1602::write_4bits(uint8_t value)
 
 int Lcm1602::write(uint8_t value, uint8_t mode)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (write_4bits((value & 0xF0) | mode) < 0)
   {
     RCLCPP_ERROR(logger(log_name_), "%s: Failed to write high nibble", __func__);
@@ -104,6 +108,7 @@ int Lcm1602::write(uint8_t value, uint8_t mode)
 
 int Lcm1602::command(uint8_t value, uint32_t delay_us)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (write(value, LCM1602_CMD) < 0)
   {
     RCLCPP_ERROR(
@@ -116,6 +121,7 @@ int Lcm1602::command(uint8_t value, uint32_t delay_us)
 
 int Lcm1602::initialize()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (initialized_)
   {
     return 0;
@@ -180,6 +186,7 @@ int Lcm1602::initialize()
 
 int Lcm1602::stop()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   int ret = 0;
   if (clear() < 0)
   {
@@ -197,6 +204,7 @@ int Lcm1602::stop()
 
 int Lcm1602::clear()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (command(LCM1602_CLEARDISPLAY) < 0)
   {
     RCLCPP_ERROR(logger(log_name_), "%s: Failed to clear display", __func__);
@@ -208,6 +216,7 @@ int Lcm1602::clear()
 
 int Lcm1602::home()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (command(LCM1602_RETURNHOME) < 0)
   {
     RCLCPP_ERROR(logger(log_name_), "%s: Failed to return home", __func__);
@@ -219,6 +228,7 @@ int Lcm1602::home()
 
 int Lcm1602::set_cursor(const uint8_t row, const uint8_t column)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   static constexpr uint8_t row_offsets[] = {0, 64, 20, 84};
   uint8_t offset = (row < 4) ? row_offsets[row] : 0;
   return command(LCM1602_SETDDRAMADDR | ((column % columns_) + offset));
@@ -228,6 +238,7 @@ int Lcm1602::print_char(char c) { return write(c, LCM1602_RS); }
 
 int Lcm1602::print_msg(const std::string & msg)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   for (size_t i = 0; i < msg.length(); ++i)
   {
     uint8_t row = static_cast<uint8_t>(i / columns_);
@@ -248,8 +259,16 @@ int Lcm1602::print_msg(const std::string & msg)
   return 0;
 }
 
-int Lcm1602::turn_on() { return command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON); }
+int Lcm1602::turn_on()
+{
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
+  return command(LCM1602_DISPLAYCONTROL | LCM1602_DISPLAYON);
+}
 
-int Lcm1602::turn_off() { return command(LCM1602_DISPLAYCONTROL); }
+int Lcm1602::turn_off()
+{
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
+  return command(LCM1602_DISPLAYCONTROL);
+}
 
 }  // namespace linux_i2c_devices

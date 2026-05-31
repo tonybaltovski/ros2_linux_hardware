@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "linux_i2c_devices/screen.hpp"
@@ -182,6 +183,11 @@ private:
   uint8_t columns_;
   uint8_t backlight_;
   bool initialized_;
+  // Serialises this driver's multi-step sequences (cursor/backlight state plus
+  // the interleaved I2C writes and sleeps in initialize()/print_msg()) so
+  // concurrent callers cannot corrupt the LCD's state machine.  Recursive
+  // because public entry points call one another (e.g. print_msg -> set_cursor).
+  mutable std::recursive_mutex device_mutex_;
 };
 
 }  // namespace linux_i2c_devices

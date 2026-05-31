@@ -201,6 +201,7 @@ int Ssd1306::send_data(Transaction & i2c_transaction, const uint8_t * data, uint
 
 int Ssd1306::initialize()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (initialized_)
   {
     return 0;
@@ -265,6 +266,7 @@ int Ssd1306::initialize()
 
 int Ssd1306::clear()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   std::memset(buffer_, 0, SSD1306_BUFFER_SIZE);
   cursor_row_ = 0;
   cursor_col_ = 0;
@@ -289,6 +291,7 @@ int Ssd1306::display(Transaction & i2c_transaction)
 
 int Ssd1306::display()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   // The GDDRAM cursor lives in the chip and auto-advances across separate I2C
   // transactions, so we release the bus between chunks: other drivers on the
   // same bus can interleave instead of waiting for the full ~1 KB flush.
@@ -336,6 +339,7 @@ int Ssd1306::display()
 
 void Ssd1306::set_pixel(uint8_t x, uint8_t y, bool on)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (x >= SSD1306_WIDTH || y >= SSD1306_HEIGHT)
   {
     return;
@@ -356,6 +360,7 @@ void Ssd1306::set_pixel(uint8_t x, uint8_t y, bool on)
 
 void Ssd1306::draw_char(uint8_t x, uint8_t y, char c)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (c < 0x20 || c > 0x7E)
   {
     c = '?';
@@ -373,6 +378,7 @@ void Ssd1306::draw_char(uint8_t x, uint8_t y, char c)
 
 int Ssd1306::set_cursor(uint8_t row, uint8_t column)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (row >= SSD1306_TEXT_ROWS)
   {
     RCLCPP_ERROR(
@@ -394,6 +400,7 @@ int Ssd1306::set_cursor(uint8_t row, uint8_t column)
 
 int Ssd1306::print_char(char c)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t px = cursor_col_ * (SSD1306_FONT_WIDTH + SSD1306_FONT_SPACING);
   uint8_t py = cursor_row_ * SSD1306_FONT_HEIGHT;
   draw_char(px, py, c);
@@ -413,6 +420,7 @@ int Ssd1306::print_char(char c)
 
 int Ssd1306::print_msg(const std::string & msg)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   for (char c : msg)
   {
     print_char(c);
@@ -427,6 +435,7 @@ int Ssd1306::print_msg(const std::string & msg)
 
 int Ssd1306::stop()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   int ret = 0;
   if (initialized_)
   {

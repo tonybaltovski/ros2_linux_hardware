@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "linux_i2c_devices/imu.hpp"
@@ -157,6 +158,10 @@ private:
   double gyro_lsb_to_dps_;
   std::string log_name_;
   bool initialized_;
+  // Serialises the multi-step initialize()/stop() sequences (with their
+  // inter-transaction sleeps) and the public read_*() helpers, which chain
+  // through read_imu()/read_imu_raw().  Recursive because of that chaining.
+  mutable std::recursive_mutex device_mutex_;
 };
 
 }  // namespace linux_i2c_devices

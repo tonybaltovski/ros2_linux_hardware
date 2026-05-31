@@ -106,6 +106,8 @@ private:
   uint16_t min_pulse_us_;
   uint16_t max_pulse_us_;
   double actuation_range_deg_;
+  // The wrapper itself is not thread-safe (see class docstring); the
+  // underlying Pca9685 serialises the actual I2C write.
   uint16_t last_pulse_us_;
 };
 

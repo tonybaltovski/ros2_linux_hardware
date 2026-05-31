@@ -59,6 +59,7 @@ Pca9685::Pca9685(
 
 int Pca9685::initialize()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (initialized_)
   {
     return 0;
@@ -183,6 +184,7 @@ int Pca9685::set_pwm_frequency_unlocked(Transaction & i2c_transaction, double fr
 
 int Pca9685::set_pwm_frequency(double freq_hz)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
   if (!i2c_transaction.ok())
   {
@@ -194,6 +196,7 @@ int Pca9685::set_pwm_frequency(double freq_hz)
 
 int Pca9685::set_pwm(uint8_t channel, uint16_t on, uint16_t off)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   if (channel >= PCA9685_NUM_CHANNELS)
   {
     RCLCPP_ERROR(
@@ -227,6 +230,7 @@ int Pca9685::set_pwm(uint8_t channel, uint16_t on, uint16_t off)
 
 int Pca9685::set_duty_cycle(uint8_t channel, double duty_cycle)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   duty_cycle = std::clamp(duty_cycle, 0.0, 1.0);
   uint16_t off_count = static_cast<uint16_t>(duty_cycle * (PCA9685_MAX_COUNT - 1));
   return set_pwm(channel, 0, off_count);
@@ -234,6 +238,7 @@ int Pca9685::set_duty_cycle(uint8_t channel, double duty_cycle)
 
 int Pca9685::set_all_pwm(uint16_t on, uint16_t off)
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   uint8_t payload[4] = {
     static_cast<uint8_t>(on & 0xFF),
     static_cast<uint8_t>((on >> 8) & 0x0F),
@@ -257,6 +262,7 @@ int Pca9685::set_all_pwm(uint16_t on, uint16_t off)
 
 int Pca9685::sleep()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
   if (!i2c_transaction.ok())
   {
@@ -274,6 +280,7 @@ int Pca9685::sleep()
 
 int Pca9685::wake_up()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   auto i2c_transaction = i2c_interface_->begin_transaction(device_id_);
   if (!i2c_transaction.ok())
   {
@@ -299,6 +306,7 @@ int Pca9685::wake_up()
 
 void Pca9685::stop()
 {
+  std::lock_guard<std::recursive_mutex> guard(device_mutex_);
   set_all_pwm(0, 0);
   sleep();
 }
