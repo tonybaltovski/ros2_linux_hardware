@@ -42,8 +42,8 @@
 #include <thread>
 #include <vector>
 
-#include "linux_iio_devices/iio_imu_publisher_parameters.hpp"
 #include "linux_iio_devices/iio_device.hpp"
+#include "linux_iio_devices/iio_imu_publisher_parameters.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>

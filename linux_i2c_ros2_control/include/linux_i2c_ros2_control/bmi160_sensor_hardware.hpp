@@ -22,6 +22,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "hardware_interface/sensor_interface.hpp"
 
